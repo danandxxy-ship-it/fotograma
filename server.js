@@ -16,7 +16,7 @@ else if (KEY) setGlobalCatalog(new TMDB(KEY));
 
 const app = express();
 const PUBLIC = new Set(['index.html', 'style.css', 'app.js', 'sfx.js', 'anybody.woff2', 'permanent-marker.woff2']);
-app.get('/', (_q, r) => r.sendFile(path.join(__dirname, 'index.html')));
+app.get('/', (_q, r) => { r.set('Cache-Control', 'no-cache'); r.sendFile(path.join(__dirname, 'index.html')); });
 app.get('/:file', (req, res, next) => PUBLIC.has(req.params.file) ? res.sendFile(path.join(__dirname, req.params.file), { maxAge: '1h' }) : next());
 if (MOCK) {
   app.get('/demo/frame/:i/:n.svg', (req, res) => res.type('svg').send(demoSvg(+req.params.i, +req.params.n)));
