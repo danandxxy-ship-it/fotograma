@@ -5,41 +5,48 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#dfe7ea">
 <title>Fotograma — adivinhe pelo frame</title>
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <main id="app">
 
-  <!-- MENU PRINCIPAL -->
-  <section id="v-home" class="view">
-    <div class="strip hero-strip" aria-hidden="true">
-      <span class="edge">FG 400 ▸ 24</span>
-      <div class="hero-cells"><i></i><i></i><i></i><i></i><i></i></div>
-      <span class="edge edge-b">◂ 25 ▸ 26 ▸ 27</span>
-    </div>
-    <h1 class="logo">Fotograma</h1>
-    <p class="lede">Um frame de filme, série, anime ou desenho aparece. Não precisa escrever certinho, mas quem acerta primeiro ganha mais, e o título completo vale bônus.</p>
+  <!-- MENU PRINCIPAL: fachada de cinema -->
+  <section id="v-home" class="view facade">
+    <div class="curtain cl" aria-hidden="true"></div><div class="curtain cr" aria-hidden="true"></div>
+    <header class="marquee">
+      <div class="bulbs" aria-hidden="true"></div>
+      <p class="now">Em cartaz hoje</p>
+      <h1 class="board" id="title-board" aria-label="Fotograma">Fotograma</h1>
+      <p class="tag">Adivinhe o filme, série, anime ou desenho pelo frame</p>
+    </header>
 
-    <label class="tape-field">
-      <span>Seu nome</span>
+    <label class="namebox">
+      <span>Seu nome no ingresso</span>
       <input id="in-name" maxlength="16" placeholder="ex.: Dan" autocomplete="off">
     </label>
 
     <nav class="menu" aria-label="Menu principal">
-      <button type="button" class="menu-item" id="m-create"><b>Criar sala</b><small>Você escolhe as categorias e chama os amigos</small></button>
-      <button type="button" class="menu-item" id="m-join"><b>Entrar numa sala</b><small>Com o código de 4 letras</small></button>
+      <button type="button" class="ticket gold" id="m-create">
+        <span class="t-main">Criar sala</span><span class="t-sub">Você escolhe o que passa no telão</span><span class="stub">Sala<br>nova</span>
+      </button>
+      <button type="button" class="ticket" id="m-join">
+        <span class="t-main">Entrar numa sala</span><span class="t-sub">Com o código de 4 letras</span><span class="stub">Tenho<br>código</span>
+      </button>
       <form id="f-join" class="join-row join-drawer" autocomplete="off" hidden>
         <input id="in-code" maxlength="4" placeholder="CÓDIGO" aria-label="Código da sala" autocapitalize="characters">
         <button type="submit" id="b-join" class="btn-roll sm">Entrar</button>
       </form>
-      <button type="button" class="menu-item" data-open="howto"><b>Como jogar</b><small>Rodadas, dicas e pontos</small></button>
-      <button type="button" class="menu-item" data-open="settings"><b>Ajustes</b><small>Som, volume e vibração</small></button>
+      <div class="tiles">
+        <button type="button" class="tile" data-open="howto">Como jogar</button>
+        <button type="button" class="tile" data-open="settings">Ajustes</button>
+      </div>
     </nav>
     <p class="msg" id="home-msg" role="alert"></p>
+    <div class="reelband" aria-hidden="true"><div class="track"></div></div>
   </section>
 
   <!-- COMO JOGAR -->
-  <section id="v-howto" class="view" hidden>
+  <section id="v-howto" class="view facade program" hidden>
     <button type="button" class="back" data-back>‹ Voltar</button>
     <h2 class="logo small">Como jogar</h2>
     <ol class="howto">
@@ -62,7 +69,7 @@
   </section>
 
   <!-- AJUSTES -->
-  <section id="v-settings" class="view" hidden>
+  <section id="v-settings" class="view facade program" hidden>
     <button type="button" class="back" data-back>‹ Voltar</button>
     <h2 class="logo small">Ajustes</h2>
     <div class="setting">
@@ -210,7 +217,7 @@
   <footer class="tmdb">Frames e dados: TMDB. Este jogo usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.</footer>
 </main>
 <script src="/socket.io/socket.io.js"></script>
-<script src="sfx.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="sfx.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

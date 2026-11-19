@@ -14,6 +14,12 @@
   let myCode = null;
   let inRoom = false;
 
+  // ---------- letreiro: letras de painel com leve inclinação ----------
+  (() => {
+    const b = $('#title-board'); const txt = b.textContent.trim();
+    b.innerHTML = [...txt].map((c, i) => `<span class="lt" aria-hidden="true" style="--i:${i};--r:${((i * 37) % 7 - 3) * 0.8}deg">${c.toUpperCase()}</span>`).join('');
+  })();
+
   // ---------- entrada ----------
   const params = new URLSearchParams(location.search);
   $('#in-name').value = store.get('name') || '';
@@ -23,11 +29,12 @@
     if (!n) { $('#home-msg').textContent = 'Escreva seu nome primeiro.'; $('#in-name').focus(); return null; }
     store.set('name', n); return n;
   };
-  $('#m-create').onclick = () => { const n = nameOk(); if (n) socket.emit('create', { name: n, token }); };
+  $('#m-create').onclick = () => { const n = nameOk(); if (n) { SFX.play('reel'); socket.emit('create', { name: n, token }); } };
+  document.querySelectorAll('.ticket, .tile').forEach((b) => b.addEventListener('focus', () => SFX.play('click')));
   $('#m-join').onclick = () => {
     const open = $('#f-join').hidden;
     $('#f-join').hidden = !open; $('#m-join').setAttribute('aria-expanded', open);
-    if (open) $('#in-code').focus();
+    if (open) { $('#in-code').focus(); SFX.play('pencil'); }
   };
   if (params.get('sala')) { $('#f-join').hidden = false; $('#m-join').setAttribute('aria-expanded', 'true'); }
   $('#f-join').onsubmit = (e) => {
