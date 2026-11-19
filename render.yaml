@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: fotograma
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: TMDB_TOKEN
+        sync: false

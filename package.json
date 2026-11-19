@@ -1,0 +1,16 @@
+{
+  "name": "fotograma",
+  "version": "1.0.0",
+  "description": "Fotograma — adivinhe o filme, série, anime ou desenho pelo frame. Multiplayer com amigos.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "demo": "MOCK=1 node server.js",
+    "test": "node test.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "express": "^4.21.0",
+    "socket.io": "^4.8.0"
+  }
+}

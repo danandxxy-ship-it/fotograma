@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#dfe7ea">
+<title>Fotograma — adivinhe pelo frame</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="app">
+
+  <!-- ENTRADA -->
+  <section id="v-home" class="view">
+    <div class="strip hero-strip" aria-hidden="true">
+      <span class="edge">FG 400 ▸ 24</span>
+      <div class="hero-cells"><i></i><i></i><i></i><i></i><i></i></div>
+      <span class="edge edge-b">◂ 25 ▸ 26 ▸ 27</span>
+    </div>
+    <h1 class="logo">Fotograma</h1>
+    <p class="lede">Um frame de filme, série, anime ou desenho aparece. Quem disser o nome primeiro leva mais pontos. Não precisa escrever certinho.</p>
+
+    <form id="f-home" class="sheet" autocomplete="off">
+      <label class="tape-field">
+        <span>Seu nome</span>
+        <input id="in-name" maxlength="16" required placeholder="ex.: Dan">
+      </label>
+      <button type="button" id="b-create" class="btn-roll">Criar sala</button>
+      <div class="or"><span>ou entre numa sala</span></div>
+      <div class="join-row">
+        <input id="in-code" maxlength="4" placeholder="CÓDIGO" aria-label="Código da sala" autocapitalize="characters">
+        <button type="submit" id="b-join" class="btn-plain">Entrar</button>
+      </div>
+      <p class="msg" id="home-msg" role="alert"></p>
+    </form>
+  </section>
+
+  <!-- LOBBY -->
+  <section id="v-lobby" class="view" hidden>
+    <header class="can">
+      <div class="can-label">
+        <small>Sala</small>
+        <strong id="lobby-code">----</strong>
+      </div>
+      <button id="b-share" class="btn-plain sm">Chamar amigos</button>
+    </header>
+
+    <h2 class="pencil">Na sala</h2>
+    <ul id="lobby-players" class="tapes"></ul>
+
+    <div id="host-box">
+      <div id="key-box" class="note" hidden>
+        <p><b>Falta a chave do TMDB.</b> É ela que traz os frames reais. É grátis: crie uma conta em themoviedb.org, vá em Configurações › API e copie o "Token de leitura da API".</p>
+        <div class="join-row">
+          <input id="in-key" placeholder="Cole o token aqui" aria-label="Token do TMDB">
+          <button id="b-key" class="btn-plain">Salvar</button>
+        </div>
+        <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">Abrir página da chave</a>
+      </div>
+
+      <fieldset class="opt">
+        <legend>O que vai passar no projetor</legend>
+        <div class="mounts" id="opt-cats">
+          <button data-v="filmes">Filmes</button><button data-v="series">Séries</button>
+          <button data-v="animes">Animes</button><button data-v="desenhos">Desenhos</button>
+        </div>
+      </fieldset>
+      <fieldset class="opt">
+        <legend>Rodadas</legend>
+        <div class="seg" id="opt-rounds"><button data-v="5">5</button><button data-v="10">10</button><button data-v="15">15</button><button data-v="20">20</button></div>
+      </fieldset>
+      <fieldset class="opt">
+        <legend>Tempo por frame</legend>
+        <div class="seg" id="opt-time"><button data-v="30">30s</button><button data-v="45">45s</button><button data-v="60">60s</button><button data-v="90">90s</button></div>
+      </fieldset>
+      <fieldset class="opt">
+        <legend>Dificuldade</legend>
+        <div class="seg" id="opt-diff"><button data-v="facil">Só sucesso</button><button data-v="medio">Misturado</button><button data-v="dificil">Cinéfilo</button></div>
+      </fieldset>
+      <button id="b-start" class="btn-roll">Rodar o filme</button>
+    </div>
+    <p id="guest-wait" class="pencil-note" hidden>Esperando o anfitrião rodar o filme…</p>
+    <p class="msg" id="lobby-msg" role="alert"></p>
+  </section>
+
+  <!-- JOGO -->
+  <section id="v-game" class="view" hidden>
+    <header class="hud">
+      <div class="reel" id="reel" aria-live="polite">
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <circle cx="32" cy="32" r="29" class="reel-bg"/>
+          <circle cx="32" cy="32" r="14.5" class="reel-sweep" id="reel-sweep" pathLength="100"/>
+          <line x1="32" y1="2" x2="32" y2="62"/><line x1="2" y1="32" x2="62" y2="32"/>
+          <circle cx="32" cy="32" r="21" class="reel-ring"/>
+        </svg>
+        <b id="timer">--</b>
+      </div>
+      <div class="hud-mid">
+        <span id="round-label">Rolo 1 de 10</span>
+        <strong id="phase-label">Carregando o rolo…</strong>
+      </div>
+      <div class="hud-score"><small>Você</small><b id="my-score">0</b></div>
+    </header>
+
+    <div class="projector">
+      <div class="screen" id="screen">
+        <img id="frame-main" alt="" hidden>
+        <div class="screen-empty" id="screen-empty">
+          <span id="screen-msg">Ligando o projetor…</span>
+        </div>
+        <div class="answer" id="answer" hidden>
+          <img id="answer-poster" alt="">
+          <div>
+            <small id="answer-kind"></small>
+            <strong id="answer-title"></strong>
+            <span id="answer-orig"></span>
+          </div>
+        </div>
+      </div>
+      <p class="mask" id="mask" aria-label="Dica do título"></p>
+    </div>
+
+    <div class="strip sheet-strip">
+      <span class="edge" id="edge-a">FG 400 ▸ ROLO 1</span>
+      <div class="cells" id="cells"></div>
+      <span class="edge edge-b">◂ escolha um frame</span>
+    </div>
+
+    <ol class="feed" id="feed" aria-live="polite"></ol>
+
+    <ul class="scoreline" id="scoreline"></ul>
+
+    <form class="slate" id="f-guess" autocomplete="off">
+      <input id="in-guess" maxlength="80" placeholder="Que filme é esse?" aria-label="Seu palpite" enterkeyhint="send" autocorrect="off" spellcheck="false">
+      <button id="b-guess" class="btn-roll sm">Chutar</button>
+      <span class="verdict" id="verdict" aria-live="assertive"></span>
+    </form>
+  </section>
+
+  <!-- FIM -->
+  <section id="v-end" class="view" hidden>
+    <h2 class="logo small">Créditos finais</h2>
+    <ol class="credits" id="credits"></ol>
+    <button id="b-again" class="btn-roll">Jogar de novo</button>
+    <button id="b-tolobby" class="btn-plain">Voltar à sala</button>
+    <p id="end-wait" class="pencil-note" hidden>O anfitrião decide a próxima sessão.</p>
+  </section>
+
+  <footer class="tmdb">Frames e dados: TMDB. Este jogo usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.</footer>
+</main>
+<script src="/socket.io/socket.io.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
