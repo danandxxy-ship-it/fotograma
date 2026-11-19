@@ -15,7 +15,7 @@ if (MOCK) setGlobalCatalog(new Demo());
 else if (KEY) setGlobalCatalog(new TMDB(KEY));
 
 const app = express();
-const PUBLIC = new Set(['index.html', 'style.css', 'app.js', 'anybody.woff2', 'permanent-marker.woff2']);
+const PUBLIC = new Set(['index.html', 'style.css', 'app.js', 'sfx.js', 'anybody.woff2', 'permanent-marker.woff2']);
 app.get('/', (_q, r) => r.sendFile(path.join(__dirname, 'index.html')));
 app.get('/:file', (req, res, next) => PUBLIC.has(req.params.file) ? res.sendFile(path.join(__dirname, req.params.file), { maxAge: '1h' }) : next());
 if (MOCK) {
@@ -59,8 +59,9 @@ io.on('connection', (socket) => {
   socket.on('guess', (text) => {
     if (!room) return;
     const r = room.guess(pid, text);
-    if (r) socket.emit('verdict', r);
+    if (r) socket.emit('verdict', { result: r.result, exact: !!r.exact, pts: r.pts || 0, place: r.place || 0, placeBonus: r.placeBonus || 0, exactBonus: r.exactBonus || 0 });
   });
+  socket.on('leave', () => { if (room) room.removePlayer(pid, socket.id); room = null; });
   socket.on('disconnect', () => room && room.dropSocket(pid, socket.id));
 });
 

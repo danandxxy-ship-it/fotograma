@@ -98,10 +98,15 @@ function variants(title) {
   return out;
 }
 
+// "Exato" = o título completo (em português ou o original), ignorando só maiúsculas, acentos e pontuação
+const exactForm = (s) => norm(s).replace(/ /g, '');
+
 function buildAnswerKey(titles) {
-  const main = new Set(), all = new Set();
-  titles.forEach((t, i) => variants(t).forEach((v) => { all.add(v); if (i < 2) main.add(v); }));
-  return [...all].map((v) => ({ text: v, toks: v.split(' '), squash: v.replace(/ /g, '') }));
+  const all = new Set();
+  titles.forEach((t) => variants(t).forEach((v) => all.add(v)));
+  const key = [...all].map((v) => ({ text: v, toks: v.split(' '), squash: v.replace(/ /g, '') }));
+  key.exact = new Set(titles.slice(0, 2).filter(Boolean).map(exactForm));
+  return key;
 }
 
 /**
@@ -128,7 +133,7 @@ function check(guess, key) {
     else if (len <= 6) { const d = damerau(gs, c.squash); s = d === 0 ? 1 : d === 1 ? 0.86 : Math.min(s, 0.7); }
     if (s > best) best = s;
   }
-  if (best >= 0.8) return { result: 'correct', score: best };
+  if (best >= 0.8) return { result: 'correct', score: best, exact: !!key.exact && key.exact.has(exactForm(guess)) };
   if (best >= 0.66) return { result: 'close', score: best };
   return { result: 'wrong', score: best };
 }

@@ -12,6 +12,7 @@
   let lastPhase = '';
   let token = store.get('token') || '';
   let myCode = null;
+  let inRoom = false;
 
   // ---------- entrada ----------
   const params = new URLSearchParams(location.search);
@@ -22,8 +23,14 @@
     if (!n) { $('#home-msg').textContent = 'Escreva seu nome primeiro.'; $('#in-name').focus(); return null; }
     store.set('name', n); return n;
   };
-  $('#b-create').onclick = () => { const n = nameOk(); if (n) socket.emit('create', { name: n, token }); };
-  $('#f-home').onsubmit = (e) => {
+  $('#m-create').onclick = () => { const n = nameOk(); if (n) socket.emit('create', { name: n, token }); };
+  $('#m-join').onclick = () => {
+    const open = $('#f-join').hidden;
+    $('#f-join').hidden = !open; $('#m-join').setAttribute('aria-expanded', open);
+    if (open) $('#in-code').focus();
+  };
+  if (params.get('sala')) { $('#f-join').hidden = false; $('#m-join').setAttribute('aria-expanded', 'true'); }
+  $('#f-join').onsubmit = (e) => {
     e.preventDefault();
     const n = nameOk(); if (!n) return;
     const code = $('#in-code').value.trim().toUpperCase();
@@ -31,7 +38,7 @@
     socket.emit('join', { name: n, code, token });
   };
   socket.on('joined', ({ code, token: t }) => {
-    token = t; myCode = code; store.set('token', t); store.set('room', code);
+    inRoom = true; token = t; myCode = code; store.set('token', t); store.set('room', code);
     history.replaceState(null, '', '?sala=' + code);
   });
   socket.on('fail', (m) => { ($('#v-home').hidden ? $('#lobby-msg') : $('#home-msg')).textContent = m; });
@@ -77,12 +84,21 @@
     socket.emit('guess', v); $('#in-guess').value = '';
   };
   let vTimer;
-  socket.on('verdict', (r) => {
+  socket.on('verdict', (v) => {
+    const r = v.result;
     const el = $('#verdict');
-    el.textContent = r === 'correct' ? 'Acertou!' : r === 'close' ? 'Quase!' : 'Não é…';
+    el.textContent = r === 'correct' ? (v.exact ? 'Título exato!' : v.place === 1 ? 'Primeiro!' : 'Acertou!') : r === 'close' ? 'Quase!' : 'Não é…';
     el.className = 'verdict show ' + r;
-    clearTimeout(vTimer); vTimer = setTimeout(() => (el.className = 'verdict'), 1300);
-    if (navigator.vibrate) navigator.vibrate(r === 'correct' ? [30, 40, 60] : r === 'close' ? 25 : 10);
+    if (r === 'correct') {
+      const parts = [];
+      if (v.placeBonus) parts.push(`${v.place}º lugar +${v.placeBonus}`);
+      if (v.exactBonus) parts.push(`título exato +${v.exactBonus}`);
+      $('#bonus').textContent = `+${v.pts} pontos` + (parts.length ? ` (${parts.join(', ')})` : '');
+      $('#bonus').hidden = false;
+    }
+    clearTimeout(vTimer); vTimer = setTimeout(() => (el.className = 'verdict'), 1600);
+    SFX.play(r === 'correct' ? (v.exact ? 'exact' : 'correct') : r === 'close' ? 'close' : 'wrong');
+    buzz(r === 'correct' ? [30, 40, 60] : r === 'close' ? 25 : 10);
   });
 
   const isHost = () => S && S.hostId === S.me;
@@ -90,7 +106,50 @@
   const nameOf = (id) => (S.players.find((p) => p.id === id) || {}).name || '—';
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  function show(view) { for (const v of ['home', 'lobby', 'game', 'end']) $('#v-' + v).hidden = v !== view; }
+  let localView = null; // tela aberta pelo jogador (Como jogar, Ajustes) por cima do estado da sala
+  function show(view) {
+    const v = localView || view;
+    for (const k of ['home', 'lobby', 'game', 'end', 'howto', 'settings']) $('#v-' + k).hidden = k !== v;
+  }
+  const openLocal = (v) => { localView = v; $('#pause').hidden = true; show(v); window.scrollTo(0, 0); };
+  const closeLocal = () => { localView = null; if (S) render(S); else show('home'); };
+  document.querySelectorAll('[data-open]').forEach((b) => (b.onclick = () => openLocal(b.dataset.open)));
+  document.querySelectorAll('[data-back]').forEach((b) => (b.onclick = closeLocal));
+
+  // menu dentro da partida
+  const pause = (open) => { $('#pause').hidden = !open; if (open) $('#p-resume').focus(); };
+  $('#b-gmenu').onclick = () => pause(true);
+  $('#p-resume').onclick = () => pause(false);
+  $('#pause').onclick = (e) => { if (e.target.id === 'pause') pause(false); };
+  $('#p-sound').onclick = () => { SFX.toggle(); paintSound(); };
+  $('#p-howto').onclick = () => openLocal('howto');
+  function leave() {
+    socket.emit('leave');
+    inRoom = false; S = null; myCode = null; localView = null; store.set('room', '');
+    history.replaceState(null, '', '/');
+    pause(false); $('#f-join').hidden = true; $('#in-code').value = '';
+    show('home');
+  }
+  $('#p-leave').onclick = leave;
+  $('#b-lobbyleave').onclick = leave;
+  $('#b-endleave').onclick = leave;
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!$('#pause').hidden) pause(false);
+    else if (localView) closeLocal();
+    else if (!$('#v-game').hidden) pause(true);
+  });
+
+  // ajustes
+  let vib = store.get('vib') !== 'off';
+  const buzz = (p) => { if (vib && navigator.vibrate) navigator.vibrate(p); };
+  const paintVib = () => { $('#b-vib').setAttribute('aria-pressed', vib); $('#b-vib').textContent = vib ? 'Ligada' : 'Desligada'; };
+  $('#b-vib').onclick = () => { vib = !vib; store.set('vib', vib ? 'on' : 'off'); paintVib(); buzz(40); };
+  paintVib();
+  $('#in-vol').value = Math.round(SFX.volume * 100);
+  $('#in-vol').oninput = (e) => SFX.setVolume(e.target.value / 100);
+  $('#in-vol').onchange = () => SFX.play('ding');
+  $('#b-testsnd').onclick = () => { if (!SFX.on) { SFX.toggle(); paintSound(); } SFX.play('exact'); };
 
   // círculo de lápis feito à mão, diferente para cada quadro
   function circleSvg(seed) {
@@ -105,10 +164,39 @@
   }
 
   socket.on('state', (st) => {
+    if (!inRoom) return;
     const prev = S; S = st; stateAt = performance.now();
     if (!myCode) myCode = st.code;
+    sounds(prev, st);
     render(prev);
   });
+
+  function sounds(prev, st) {
+    if (!prev) return;
+    const ph = st.phase, pph = prev.phase;
+    if (ph !== pph) {
+      if (ph === 'picking') SFX.play('reel');
+      if (ph === 'reveal') SFX.play('reveal');
+      if (ph === 'end') SFX.play('finale');
+    }
+    const nPrev = pph === 'lobby' || prev.round !== st.round ? 0 : (prev.revealed || []).length;
+    if ((ph === 'guessing' || ph === 'reveal') && st.revealed.length > nPrev && ph !== 'reveal') {
+      SFX.play('pencil'); setTimeout(() => SFX.play('projector'), 260);
+    }
+    if (ph === 'guessing' && st.mask && st.mask !== prev.mask) SFX.play('hint');
+    if (ph === 'lobby' && st.players.length > prev.players.length) SFX.play('join');
+    const lastAt = prev.feed.length ? prev.feed[prev.feed.length - 1].at : 0;
+    const myName = (st.players.find((p) => p.id === st.me) || {}).name;
+    if (st.feed.some((f) => f.at > lastAt && f.t === 'ok' && f.who !== myName)) SFX.play('ding');
+  }
+
+  // botões de som
+  const paintSound = () => document.querySelectorAll('.snd').forEach((b) => {
+    b.setAttribute('aria-pressed', SFX.on); b.textContent = SFX.on ? 'Som ligado' : 'Som mudo';
+  }) || ($('#p-sound .snd-state').textContent = SFX.on ? 'ligado' : 'mudo');
+  document.querySelectorAll('.snd').forEach((b) => (b.onclick = () => { SFX.toggle(); paintSound(); }));
+  paintSound();
+  ['#opt-cats', '#opt-rounds', '#opt-time', '#opt-diff'].forEach((id) => $(id).addEventListener('click', () => SFX.play('click')));
 
   function render(prev) {
     const ph = S.phase;
@@ -229,6 +317,7 @@
     const inp = $('#in-guess');
     const canGuess = ph === 'guessing' && !mine.guessed;
     inp.disabled = !canGuess; $('#b-guess').disabled = !canGuess;
+    if (ph !== 'guessing' || !mine.guessed) $('#bonus').hidden = true;
     inp.placeholder = ph === 'guessing' ? (mine.guessed ? 'Você já acertou este' : 'Que filme é esse?') : ph === 'picking' ? 'Esperando o frame…' : 'Próximo rolo já vem';
     if (canGuess && (lastPhase !== 'guessing') && !matchMedia('(pointer:coarse)').matches) inp.focus();
     lastPhase = ph;
@@ -238,6 +327,7 @@
   const lateTimer = () => false;
 
   // ---------- relógio (bobina) ----------
+  let lastTickSec = -1;
   function tick() {
     if (S && (S.phase === 'picking' || S.phase === 'guessing' || S.phase === 'reveal')) {
       const left = Math.max(0, S.endsIn - (performance.now() - stateAt));
@@ -246,6 +336,8 @@
       const frac = S.totalMs ? left / S.totalMs : 0;
       $('#reel-sweep').style.strokeDasharray = `${(frac * 100).toFixed(2)} 100`;
       $('#reel').classList.toggle('hurry', S.phase === 'guessing' && sec <= 10);
+      if (S.phase === 'guessing' && sec <= 10 && sec > 0 && sec !== lastTickSec && !me().guessed) SFX.play('tick', sec <= 3);
+      lastTickSec = sec;
       // libera o botão de pista extra quando der o tempo
       if (S.phase === 'guessing' && S.pickerId === S.me && S.canExtraIn > 0 && performance.now() - stateAt > S.canExtraIn) {
         S.canExtraIn = 0; renderGame(S);
@@ -258,7 +350,7 @@
   // ---------- controle (gamepad) ----------
   // Direcional/analógico move o foco, A confirma, B vai para o campo de palpite, Start inicia.
   const pads = {};
-  const focusables = () => [...document.querySelectorAll('button:not(:disabled), input:not(:disabled)')].filter((el) => el.offsetParent && !el.closest('[hidden]'));
+  const focusables = () => [...(!$('#pause').hidden ? $('#pause') : document).querySelectorAll('button:not(:disabled), input:not(:disabled)')].filter((el) => el.offsetParent && !el.closest('[hidden]'));
   function move(dx, dy) {
     const list = focusables(); if (!list.length) return;
     const cur = document.activeElement && list.includes(document.activeElement) ? document.activeElement : null;
@@ -290,8 +382,8 @@
       if (hit('up')) move(0, -1); if (hit('down')) move(0, 1);
       if (hit('left')) move(-1, 0); if (hit('right')) move(1, 0);
       if (hit('a')) { const el = document.activeElement; if (el && el.tagName === 'BUTTON') el.click(); else if (el && el.tagName === 'INPUT') el.form?.requestSubmit(); }
-      if (hit('b')) { const g = $('#in-guess'); if (!g.disabled && !$('#v-game').hidden) g.focus(); }
-      if (hit('start')) { if (!$('#v-lobby').hidden) $('#b-start').click(); else if (!$('#v-end').hidden) $('#b-again').click(); }
+      if (hit('b')) { if (!$('#pause').hidden) pause(false); else if (localView) closeLocal(); else { const g = $('#in-guess'); if (!g.disabled && !$('#v-game').hidden) g.focus(); } }
+      if (hit('start')) { if (!$('#v-lobby').hidden) $('#b-start').click(); else if (!$('#v-end').hidden) $('#b-again').click(); else if (!$('#v-game').hidden) pause($('#pause').hidden); }
       pads[gp.index] = now;
     }
     requestAnimationFrame(pollPads);

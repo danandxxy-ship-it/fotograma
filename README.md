@@ -1,6 +1,6 @@
 # Fotograma
 
-Jogo multiplayer no navegador: aparece um frame real de um filme, série, anime ou desenho e quem acertar o nome primeiro leva mais pontos. Até 16 pessoas por sala, celular, PC ou TV com controle.
+Jogo multiplayer no navegador, com menu principal, menu de pausa e sons: aparece um frame real de um filme, série, anime ou desenho e quem acertar o nome primeiro leva mais pontos. Até 16 pessoas por sala, celular, PC ou TV com controle.
 
 ## Como funciona uma rodada
 1. Cada rodada tem um **projecionista** (revezando entre os jogadores). Ele vê a película com 8 frames cobertos e escolhe um.
@@ -8,7 +8,9 @@ Jogo multiplayer no navegador: aparece um frame real de um filme, série, anime 
 3. Com o tempo passando, a dica do título aparece (tracinhos, depois algumas letras) e mais frames são revelados. O projecionista também pode revelar um frame extra.
 4. No fim do tempo (ou quando todos acertam) a resposta aparece com o pôster e a película inteira.
 
-**Pontos:** 100 a 300 pelo acerto (quanto mais rápido, mais), +30 para o primeiro, valor cai quando há mais frames revelados. O projecionista ganha +20 por cada pessoa que acerta.
+**Pontos:** 100 a 300 pelo acerto (quanto mais rápido, mais). Bônus de colocação: 1º +120, 2º +70, 3º +35. Título exato e completo: +80. O projecionista ganha +20 por cada pessoa que acerta. Frames extras revelados diminuem o valor do acerto. Ninguém vê o nome antes do fim da rodada: quando alguém acerta, os outros só veem "acertou", e chutes parecidos com a resposta aparecem escondidos.
+
+**Sons:** gerados no próprio navegador (sem arquivos de áudio). Volume, som e vibração ficam em Ajustes.
 
 **Correção inteligente:** aceita sem acento, com erro de digitação, sem artigo, só parte do título ("Bob Esponja", "Aranhaverso"), título em inglês ou original (ex.: "Shingeki no Kyojin"), números romanos ou por extenso. Mas "Toy Story 2" não vale para "Toy Story 3". Quando está perto, avisa "Quase!".
 

@@ -10,7 +10,7 @@
 <body>
 <main id="app">
 
-  <!-- ENTRADA -->
+  <!-- MENU PRINCIPAL -->
   <section id="v-home" class="view">
     <div class="strip hero-strip" aria-hidden="true">
       <span class="edge">FG 400 ▸ 24</span>
@@ -18,21 +18,66 @@
       <span class="edge edge-b">◂ 25 ▸ 26 ▸ 27</span>
     </div>
     <h1 class="logo">Fotograma</h1>
-    <p class="lede">Um frame de filme, série, anime ou desenho aparece. Quem disser o nome primeiro leva mais pontos. Não precisa escrever certinho.</p>
+    <p class="lede">Um frame de filme, série, anime ou desenho aparece. Não precisa escrever certinho, mas quem acerta primeiro ganha mais, e o título completo vale bônus.</p>
 
-    <form id="f-home" class="sheet" autocomplete="off">
-      <label class="tape-field">
-        <span>Seu nome</span>
-        <input id="in-name" maxlength="16" required placeholder="ex.: Dan">
-      </label>
-      <button type="button" id="b-create" class="btn-roll">Criar sala</button>
-      <div class="or"><span>ou entre numa sala</span></div>
-      <div class="join-row">
+    <label class="tape-field">
+      <span>Seu nome</span>
+      <input id="in-name" maxlength="16" placeholder="ex.: Dan" autocomplete="off">
+    </label>
+
+    <nav class="menu" aria-label="Menu principal">
+      <button type="button" class="menu-item" id="m-create"><b>Criar sala</b><small>Você escolhe as categorias e chama os amigos</small></button>
+      <button type="button" class="menu-item" id="m-join"><b>Entrar numa sala</b><small>Com o código de 4 letras</small></button>
+      <form id="f-join" class="join-row join-drawer" autocomplete="off" hidden>
         <input id="in-code" maxlength="4" placeholder="CÓDIGO" aria-label="Código da sala" autocapitalize="characters">
-        <button type="submit" id="b-join" class="btn-plain">Entrar</button>
-      </div>
-      <p class="msg" id="home-msg" role="alert"></p>
-    </form>
+        <button type="submit" id="b-join" class="btn-roll sm">Entrar</button>
+      </form>
+      <button type="button" class="menu-item" data-open="howto"><b>Como jogar</b><small>Rodadas, dicas e pontos</small></button>
+      <button type="button" class="menu-item" data-open="settings"><b>Ajustes</b><small>Som, volume e vibração</small></button>
+    </nav>
+    <p class="msg" id="home-msg" role="alert"></p>
+  </section>
+
+  <!-- COMO JOGAR -->
+  <section id="v-howto" class="view" hidden>
+    <button type="button" class="back" data-back>‹ Voltar</button>
+    <h2 class="logo small">Como jogar</h2>
+    <ol class="howto">
+      <li><b>O projecionista escolhe.</b> A cada rodada uma pessoa vê a película com 8 frames cobertos e toca num deles.</li>
+      <li><b>Todo mundo chuta.</b> Escreva o nome do filme, série, anime ou desenho. Erro de digitação, falta de acento e nome em inglês ou no idioma original valem.</li>
+      <li><b>Dicas aparecem.</b> Com o tempo surgem os tracinhos do título, depois algumas letras e mais frames da mesma obra.</li>
+      <li><b>Ninguém entrega a resposta.</b> Quando alguém acerta, os outros só veem que a pessoa acertou. O nome aparece no fim da rodada, quando o tempo acaba ou todos acertam.</li>
+    </ol>
+    <h3 class="pencil">Pontos</h3>
+    <table class="points">
+      <tr><td>Acertar</td><td>100 a 300, quanto mais rápido, mais</td></tr>
+      <tr><td>Primeiro a acertar</td><td>+120</td></tr>
+      <tr><td>Segundo</td><td>+70</td></tr>
+      <tr><td>Terceiro</td><td>+35</td></tr>
+      <tr><td>Título exato e completo</td><td>+80</td></tr>
+      <tr><td>Projecionista</td><td>+20 por pessoa que acerta</td></tr>
+      <tr><td>Frames extras revelados</td><td>o acerto vale menos</td></tr>
+    </table>
+    <p class="fine">"Título exato" é o nome inteiro, em português ou no original, como em "Senhor dos Anéis: A Sociedade do Anel". Maiúsculas, acentos e pontuação não contam.</p>
+  </section>
+
+  <!-- AJUSTES -->
+  <section id="v-settings" class="view" hidden>
+    <button type="button" class="back" data-back>‹ Voltar</button>
+    <h2 class="logo small">Ajustes</h2>
+    <div class="setting">
+      <span>Som</span>
+      <button type="button" class="snd">Som ligado</button>
+    </div>
+    <label class="setting">
+      <span>Volume</span>
+      <input type="range" id="in-vol" min="0" max="100" step="5" aria-label="Volume">
+    </label>
+    <div class="setting">
+      <span>Vibração</span>
+      <button type="button" class="toggle" id="b-vib" aria-pressed="true">Ligada</button>
+    </div>
+    <button type="button" class="btn-plain" id="b-testsnd">Testar som</button>
   </section>
 
   <!-- LOBBY -->
@@ -42,7 +87,7 @@
         <small>Sala</small>
         <strong id="lobby-code">----</strong>
       </div>
-      <button id="b-share" class="btn-plain sm">Chamar amigos</button>
+      <div class="can-actions"><button id="b-share" class="btn-plain sm">Chamar amigos</button><button class="snd" type="button">Som ligado</button></div>
     </header>
 
     <h2 class="pencil">Na sala</h2>
@@ -79,6 +124,7 @@
       </fieldset>
       <button id="b-start" class="btn-roll">Rodar o filme</button>
     </div>
+    <button type="button" class="back" id="b-lobbyleave">‹ Sair da sala</button>
     <p id="guest-wait" class="pencil-note" hidden>Esperando o anfitrião rodar o filme…</p>
     <p class="msg" id="lobby-msg" role="alert"></p>
   </section>
@@ -86,6 +132,7 @@
   <!-- JOGO -->
   <section id="v-game" class="view" hidden>
     <header class="hud">
+      <button type="button" class="hud-menu" id="b-gmenu" aria-label="Abrir menu">Menu</button>
       <div class="reel" id="reel" aria-live="polite">
         <svg viewBox="0 0 64 64" aria-hidden="true">
           <circle cx="32" cy="32" r="29" class="reel-bg"/>
@@ -99,7 +146,7 @@
         <span id="round-label">Rolo 1 de 10</span>
         <strong id="phase-label">Carregando o rolo…</strong>
       </div>
-      <div class="hud-score"><small>Você</small><b id="my-score">0</b></div>
+      <div class="hud-score"><small>Você</small><b id="my-score">0</b><button class="snd" type="button">Som ligado</button></div>
     </header>
 
     <div class="projector">
@@ -134,8 +181,21 @@
       <input id="in-guess" maxlength="80" placeholder="Que filme é esse?" aria-label="Seu palpite" enterkeyhint="send" autocorrect="off" spellcheck="false">
       <button id="b-guess" class="btn-roll sm">Chutar</button>
       <span class="verdict" id="verdict" aria-live="assertive"></span>
+      <span class="bonus" id="bonus" hidden></span>
     </form>
   </section>
+
+  <!-- MENU EM JOGO -->
+  <div class="pause" id="pause" hidden role="dialog" aria-modal="true" aria-labelledby="pause-t">
+    <div class="pause-card">
+      <h2 id="pause-t" class="pencil">Pausa na cabine</h2>
+      <p class="fine">A partida continua rolando para os outros.</p>
+      <button type="button" class="menu-item" id="p-resume"><b>Continuar</b></button>
+      <button type="button" class="menu-item snd-item" id="p-sound"><b>Som</b><small class="snd-state">ligado</small></button>
+      <button type="button" class="menu-item" id="p-howto"><b>Como jogar</b></button>
+      <button type="button" class="menu-item danger" id="p-leave"><b>Sair da sala</b><small>Você perde os pontos desta partida</small></button>
+    </div>
+  </div>
 
   <!-- FIM -->
   <section id="v-end" class="view" hidden>
@@ -144,11 +204,13 @@
     <button id="b-again" class="btn-roll">Jogar de novo</button>
     <button id="b-tolobby" class="btn-plain">Voltar à sala</button>
     <p id="end-wait" class="pencil-note" hidden>O anfitrião decide a próxima sessão.</p>
+    <button id="b-endleave" class="back">Sair para o menu</button>
   </section>
 
   <footer class="tmdb">Frames e dados: TMDB. Este jogo usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.</footer>
 </main>
 <script src="/socket.io/socket.io.js"></script>
+<script src="sfx.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

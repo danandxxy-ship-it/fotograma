@@ -4,6 +4,8 @@ const { TMDB, Demo } = require('./catalog');
 const PICK_MS = 15000;
 const REVEAL_MS = 8000;
 const MAX_FRAMES = 3;
+const PLACE_BONUS = [120, 70, 35]; // 1º, 2º e 3º a acertar
+const EXACT_BONUS = 80;            // escreveu o título completo
 const ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 
 const rooms = new Map();
@@ -74,6 +76,16 @@ class Room {
       this.checkAllGuessed();
       this.broadcast();
     }, 8000);
+  }
+  removePlayer(id, socketId) {
+    const p = this.players.get(id); if (!p) return;
+    this.players.delete(id); this.order = this.order.filter((x) => x !== id);
+    this.push({ t: 'sys', text: `${p.name} saiu` });
+    const sock = this.io.sockets.sockets.get(socketId); if (sock) sock.leave(this.code);
+    if (this.hostId === id) this.hostId = this.order.find((x) => this.players.get(x)?.connected) || null;
+    if (this.phase === 'picking' && this.pickerId === id) this.autoPick();
+    this.checkAllGuessed();
+    this.broadcast();
   }
   connected() { return this.order.map((id) => this.players.get(id)).filter((p) => p && p.connected); }
 
@@ -192,18 +204,26 @@ class Room {
       const T = this.settings.time * 1000;
       const left = Math.max(0, this.endsAt - now) / T;
       const mult = [1, 1, 0.75, 0.5][this.revealed.length] || 0.5;
-      let pts = Math.round((100 + 200 * left) * mult);
-      if (!this.firstDone) { pts += 30; this.firstDone = true; }
-      p.guessed = true; p.roundPts = pts; p.score += pts; this.correctCount++;
+      const place = ++this.correctCount; // 1º, 2º, 3º...
+      const speed = Math.round((100 + 200 * left) * mult);
+      const placeBonus = PLACE_BONUS[place - 1] || 0;
+      const exactBonus = r.exact ? EXACT_BONUS : 0;
+      const pts = speed + placeBonus + exactBonus;
+      this.firstDone = true;
+      p.guessed = true; p.roundPts = pts; p.score += pts;
+      r.pts = pts; r.place = place; r.placeBonus = placeBonus; r.exactBonus = exactBonus;
       const picker = this.players.get(this.pickerId);
       if (picker && picker.id !== id) { picker.score += 20; picker.roundPts += 20; }
-      this.push({ t: 'ok', who: p.name, text: `${p.name} acertou! +${pts}` });
+      // a mensagem pública nunca contém o palpite: o nome só aparece no fim da rodada
+      this.push({ t: 'ok', who: p.name, text: `${p.name} acertou em ${place}º${r.exact ? ', título exato' : ''}! +${pts}` });
       this.checkAllGuessed();
     } else {
-      this.push({ t: r.result === 'close' ? 'close' : 'guess', who: p.name, text: r.result === 'close' ? `${p.name} chegou perto…` : clean });
+      // chute errado só aparece para os outros se estiver longe da resposta (não dá pista)
+      const hide = r.result === 'close' || r.score >= 0.45 || this.correctCount > 0 && r.score >= 0.3;
+      this.push({ t: r.result === 'close' ? 'close' : 'guess', who: p.name, text: r.result === 'close' ? `${p.name} chegou perto…` : hide ? '••••••' : clean });
     }
     this.broadcast();
-    return r.result;
+    return r;
   }
 
   checkAllGuessed() {
