@@ -117,23 +117,28 @@
     stopAudio(); // não deixa o microfone ouvir a música do jogo
     rec = new Rec();
     rec.lang = 'pt-BR'; rec.interimResults = true; rec.maxAlternatives = 5; rec.continuous = false;
-    let sent = false;
+    let sent = false, last = [], quiet = null;
+    const send = () => {
+      clearTimeout(quiet);
+      if (sent || !last.length) return;
+      sent = true;
+      socket.emit('guess', { text: last[0], alts: last.slice(1) });
+      $('#in-guess').value = ''; SFX.play('click');
+    };
     rec.onresult = (e) => {
       const res = e.results[e.results.length - 1];
-      $('#in-guess').value = res[0].transcript;
-      if (res.isFinal && !sent) {
-        sent = true;
-        const alts = Array.from(res).map((a) => a.transcript.trim()).filter(Boolean);
-        socket.emit('guess', { text: alts[0], alts: alts.slice(1) });
-        $('#in-guess').value = ''; SFX.play('click');
-      }
+      last = Array.from(res).map((a) => a.transcript.trim()).filter(Boolean);
+      $('#in-guess').value = last[0] || '';
+      if (res.isFinal) { send(); try { rec.stop(); } catch {} return; }
+      // Android às vezes não marca como final: 1,2 s sem mudar o texto já conta como palpite
+      clearTimeout(quiet); quiet = setTimeout(() => { send(); try { rec.stop(); } catch {} }, 1200);
     };
     rec.onerror = (e) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') micInfo('Libere o microfone para este site nas permissões do navegador.');
       else if (e.error === 'no-speech') micInfo('Não ouvi nada. Toque no microfone e fale de novo.');
       else if (e.error === 'network') micInfo('O reconhecimento de voz precisa de internet.');
     };
-    rec.onend = () => { micState(false); if (S) render(); };
+    rec.onend = () => { send(); micState(false); if (S) render(); }; // fechou o microfone: o que ouviu vira palpite
     try { rec.start(); micState(true); SFX.play('click'); buzz(15); } catch { micState(false); }
   }
   if (Rec) micBtn.hidden = false;
