@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#dfe7ea">
 <title>Fotograma — adivinhe pelo frame</title>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <main id="app">
@@ -18,6 +18,7 @@
       <p class="now">Em cartaz hoje</p>
       <h1 class="board" id="title-board" aria-label="Fotograma">Fotograma</h1>
       <p class="tag">Adivinhe o filme, série, anime ou desenho pelo frame</p>
+      <p class="live" id="live-count" aria-live="polite"></p>
     </header>
 
     <label class="namebox">
@@ -97,7 +98,7 @@
       <div class="can-actions"><button id="b-share" class="btn-plain sm">Chamar amigos</button><button class="snd" type="button">Som ligado</button></div>
     </header>
 
-    <h2 class="pencil">Na sala</h2>
+    <h2 class="pencil">Na sala <span id="lobby-count"></span></h2>
     <ul id="lobby-players" class="tapes"></ul>
 
     <div id="host-box">
@@ -139,7 +140,10 @@
   <!-- JOGO -->
   <section id="v-game" class="view" hidden>
     <header class="hud">
-      <button type="button" class="hud-menu" id="b-gmenu" aria-label="Abrir menu">Menu</button>
+      <div class="hud-left">
+        <button type="button" class="hud-menu" id="b-gmenu" aria-label="Abrir menu">Menu</button>
+        <button type="button" class="hud-people" id="b-people" aria-label="Ver quem está na sala"><b id="people-n">1</b> na sala</button>
+      </div>
       <div class="reel" id="reel" aria-live="polite">
         <svg viewBox="0 0 64 64" aria-hidden="true">
           <circle cx="32" cy="32" r="29" class="reel-bg"/>
@@ -185,8 +189,10 @@
     <ul class="scoreline" id="scoreline"></ul>
 
     <form class="slate" id="f-guess" autocomplete="off">
-      <input id="in-guess" maxlength="80" placeholder="Que filme é esse?" aria-label="Seu palpite" enterkeyhint="send" autocorrect="off" spellcheck="false">
+      <input id="in-guess" maxlength="80" placeholder="Seu palpite" aria-label="Seu palpite" enterkeyhint="send" autocorrect="off" spellcheck="false">
       <button id="b-guess" class="btn-roll sm">Chutar</button>
+      <button type="button" id="b-skip" class="btn-skip" aria-pressed="false">Não sei</button>
+      <span class="skipinfo" id="skipinfo" aria-live="polite"></span>
       <span class="verdict" id="verdict" aria-live="assertive"></span>
       <span class="bonus" id="bonus" hidden></span>
     </form>
@@ -204,6 +210,16 @@
     </div>
   </div>
 
+  <!-- QUEM ESTÁ NA SALA -->
+  <div class="pause" id="people" hidden role="dialog" aria-modal="true" aria-labelledby="people-t">
+    <div class="pause-card">
+      <h2 id="people-t" class="pencil">Quem está na sala</h2>
+      <p class="fine" id="people-sum"></p>
+      <ol class="people-list" id="people-list"></ol>
+      <button type="button" class="menu-item" id="people-close"><b>Fechar</b></button>
+    </div>
+  </div>
+
   <!-- FIM -->
   <section id="v-end" class="view" hidden>
     <h2 class="logo small">Créditos finais</h2>
@@ -217,7 +233,7 @@
   <footer class="tmdb">Frames e dados: TMDB. Este jogo usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.</footer>
 </main>
 <script src="/socket.io/socket.io.js"></script>
-<script src="sfx.js?v=4"></script>
-<script src="app.js?v=4"></script>
+<script src="sfx.js?v=5"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

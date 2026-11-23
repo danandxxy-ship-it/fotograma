@@ -49,6 +49,11 @@
     history.replaceState(null, '', '?sala=' + code);
   });
   socket.on('fail', (m) => { ($('#v-home').hidden ? $('#lobby-msg') : $('#home-msg')).textContent = m; });
+  socket.on('stats', (st) => {
+    $('#live-count').textContent = st.players
+      ? `${st.players} ${st.players === 1 ? 'pessoa jogando' : 'pessoas jogando'} agora em ${st.rooms} ${st.rooms === 1 ? 'sala' : 'salas'}` + (st.playing ? `, ${st.playing} no meio de uma partida` : '')
+      : 'Nenhuma sala aberta agora. Abra a primeira!';
+  });
   socket.on('keyOk', () => { $('#lobby-msg').textContent = ''; });
   // reconexão automática (celular bloqueou a tela, Wi-Fi caiu…)
   socket.on('connect', () => {
@@ -123,6 +128,37 @@
   document.querySelectorAll('[data-open]').forEach((b) => (b.onclick = () => openLocal(b.dataset.open)));
   document.querySelectorAll('[data-back]').forEach((b) => (b.onclick = closeLocal));
 
+  // não sei / quem está na sala
+  $('#b-skip').onclick = () => { socket.emit('skip'); SFX.play('click'); };
+  function statusOf(p) {
+    if (!p.connected) return ['Sem conexão', ''];
+    const ph = S.phase;
+    if (ph === 'lobby') return [p.id === S.hostId ? 'Anfitrião, decide quando começa' : 'Esperando começar', ''];
+    if (ph === 'loading') return ['Trocando o rolo', ''];
+    if (ph === 'picking') return [p.id === S.pickerId ? 'Escolhendo o frame' : 'Esperando o frame', ''];
+    if (ph === 'guessing') {
+      if (p.guessed) return [`Acertou, +${p.roundPts}`, 'ok'];
+      if (p.skipped) return ['Passou a vez', ''];
+      return [p.id === S.pickerId ? 'Projecionista, também pode chutar' : 'Pensando…', ''];
+    }
+    if (ph === 'reveal') return [p.roundPts ? `+${p.roundPts} nesta rodada` : 'Não pontuou nesta rodada', p.roundPts ? 'ok' : ''];
+    return [`${p.score} pontos no total`, ''];
+  }
+  function renderPeople() {
+    const ranked = [...S.players].sort((a, b) => b.score - a.score || a.joinedAt - b.joinedAt);
+    const online = S.players.filter((p) => p.connected).length;
+    const inGame = !['lobby', 'end'].includes(S.phase);
+    $('#people-sum').textContent = `${S.players.length} na sala, ${online} conectados` + (inGame ? `. Rodada ${S.round} de ${S.rounds}.` : '.');
+    $('#people-list').innerHTML = ranked.map((p) => {
+      const [st, cls] = statusOf(p);
+      return `<li class="${p.connected ? '' : 'off'}"><span class="dot"></span><span class="nm">${esc(p.name)}${p.id === S.me ? '<span class="me">você</span>' : ''}${p.id === S.hostId ? '<span class="host">anfitrião</span>' : ''}</span><span class="pts">${p.score}</span><span class="st ${cls}">${st}</span></li>`;
+    }).join('');
+  }
+  const people = (open) => { $('#people').hidden = !open; if (open) { renderPeople(); $('#people-close').focus(); } };
+  $('#b-people').onclick = () => people(true);
+  $('#people-close').onclick = () => people(false);
+  $('#people').onclick = (e) => { if (e.target.id === 'people') people(false); };
+
   // menu dentro da partida
   const pause = (open) => { $('#pause').hidden = !open; if (open) $('#p-resume').focus(); };
   $('#b-gmenu').onclick = () => pause(true);
@@ -142,7 +178,8 @@
   $('#b-endleave').onclick = leave;
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (!$('#pause').hidden) pause(false);
+    if (!$('#people').hidden) people(false);
+    else if (!$('#pause').hidden) pause(false);
     else if (localView) closeLocal();
     else if (!$('#v-game').hidden) pause(true);
   });
@@ -216,8 +253,11 @@
   function renderLobby() {
     show('lobby');
     $('#lobby-code').textContent = S.code;
+    const online = S.players.filter((p) => p.connected).length;
+    $('#lobby-count').textContent = `(${S.players.length}${online < S.players.length ? `, ${online} conectados` : ''})`;
     $('#lobby-players').innerHTML = S.players.map((p) =>
-      `<li class="${p.connected ? '' : 'off'}">${esc(p.name)}${p.id === S.hostId ? '<span class="host">anfitrião</span>' : ''}</li>`).join('');
+      `<li class="${p.connected ? '' : 'off'}">${esc(p.name)}${p.id === S.me ? '<span class="me">você</span>' : ''}${p.id === S.hostId ? '<span class="host">anfitrião</span>' : ''}${p.connected ? '' : '<span class="st">sem conexão</span>'}</li>`).join('');
+    if (!$('#people').hidden) renderPeople();
     const host = isHost();
     $('#host-box').hidden = !host;
     $('#guest-wait').hidden = host;
@@ -310,7 +350,7 @@
     const feed = $('#feed');
     feed.innerHTML = S.feed.map((f) => {
       if (f.t === 'guess') return `<li><b>${esc(f.who)}:</b> ${esc(f.text)}</li>`;
-      const cls = { ok: 'ok', close: 'close', answer: 'answer-line' }[f.t] || 'sys';
+      const cls = { ok: 'ok', close: 'close', answer: 'answer-line', skip: 'skip' }[f.t] || 'sys';
       return `<li class="${cls}">${esc(f.text)}</li>`;
     }).join('');
     feed.scrollTop = feed.scrollHeight;
@@ -318,14 +358,26 @@
     // placar
     const ranked = [...S.players].sort((a, b) => b.score - a.score);
     $('#scoreline').innerHTML = ranked.map((p) =>
-      `<li class="${p.guessed ? 'done' : ''} ${p.id === S.pickerId ? 'pick' : ''}" style="${p.connected ? '' : 'opacity:.45'}">${esc(p.name)} <b>${p.score}</b></li>`).join('');
+      `<li class="${p.guessed ? 'done' : p.skipped ? 'skip' : ''} ${p.id === S.pickerId ? 'pick' : ''} ${p.connected ? '' : 'off'}">${esc(p.name)} <b>${p.score}</b></li>`).join('');
+    const online = S.players.filter((p) => p.connected);
+    $('#people-n').textContent = online.length;
+    // botão Não sei
+    const sk = $('#b-skip');
+    sk.disabled = ph !== 'guessing' || mine.guessed;
+    sk.setAttribute('aria-pressed', !!mine.skipped);
+    sk.textContent = mine.skipped ? 'Passei (desfazer)' : 'Não sei';
+    const pending = online.filter((p) => !p.guessed);
+    const skippers = pending.filter((p) => p.skipped).length;
+    $('#skipinfo').textContent = ph === 'guessing' && skippers
+      ? `${skippers} de ${pending.length} ${pending.length === 1 ? 'que falta' : 'que faltam'} passaram a vez. Se todos passarem, a rodada acaba.` : '';
+    if (!$('#people').hidden) renderPeople();
 
     // campo de palpite
     const inp = $('#in-guess');
     const canGuess = ph === 'guessing' && !mine.guessed;
     inp.disabled = !canGuess; $('#b-guess').disabled = !canGuess;
     if (ph !== 'guessing' || !mine.guessed) $('#bonus').hidden = true;
-    inp.placeholder = ph === 'guessing' ? (mine.guessed ? 'Você já acertou este' : 'Que filme é esse?') : ph === 'picking' ? 'Esperando o frame…' : 'Próximo rolo já vem';
+    inp.placeholder = ph === 'guessing' ? (mine.guessed ? 'Você já acertou' : mine.skipped ? 'Ainda dá pra chutar' : 'Seu palpite') : ph === 'picking' ? 'Esperando o frame…' : 'Próximo rolo já vem';
     if (canGuess && (lastPhase !== 'guessing') && !matchMedia('(pointer:coarse)').matches) inp.focus();
     lastPhase = ph;
   }
@@ -357,7 +409,7 @@
   // ---------- controle (gamepad) ----------
   // Direcional/analógico move o foco, A confirma, B vai para o campo de palpite, Start inicia.
   const pads = {};
-  const focusables = () => [...(!$('#pause').hidden ? $('#pause') : document).querySelectorAll('button:not(:disabled), input:not(:disabled)')].filter((el) => el.offsetParent && !el.closest('[hidden]'));
+  const focusables = () => [...(!$('#people').hidden ? $('#people') : !$('#pause').hidden ? $('#pause') : document).querySelectorAll('button:not(:disabled), input:not(:disabled)')].filter((el) => el.offsetParent && !el.closest('[hidden]'));
   function move(dx, dy) {
     const list = focusables(); if (!list.length) return;
     const cur = document.activeElement && list.includes(document.activeElement) ? document.activeElement : null;
@@ -381,7 +433,7 @@
       if (!gp) continue;
       const prev = pads[gp.index] || {};
       const now = {
-        a: gp.buttons[0]?.pressed, b: gp.buttons[1]?.pressed, start: gp.buttons[9]?.pressed,
+        a: gp.buttons[0]?.pressed, b: gp.buttons[1]?.pressed, x: gp.buttons[2]?.pressed, y: gp.buttons[3]?.pressed, start: gp.buttons[9]?.pressed,
         up: gp.buttons[12]?.pressed || gp.axes[1] < -0.6, down: gp.buttons[13]?.pressed || gp.axes[1] > 0.6,
         left: gp.buttons[14]?.pressed || gp.axes[0] < -0.6, right: gp.buttons[15]?.pressed || gp.axes[0] > 0.6,
       };
@@ -389,7 +441,9 @@
       if (hit('up')) move(0, -1); if (hit('down')) move(0, 1);
       if (hit('left')) move(-1, 0); if (hit('right')) move(1, 0);
       if (hit('a')) { const el = document.activeElement; if (el && el.tagName === 'BUTTON') el.click(); else if (el && el.tagName === 'INPUT') el.form?.requestSubmit(); }
-      if (hit('b')) { if (!$('#pause').hidden) pause(false); else if (localView) closeLocal(); else { const g = $('#in-guess'); if (!g.disabled && !$('#v-game').hidden) g.focus(); } }
+      if (hit('x') && !$('#v-game').hidden && !$('#b-skip').disabled) $('#b-skip').click();
+      if (hit('y') && (!$('#v-game').hidden || !$('#v-lobby').hidden)) people($('#people').hidden);
+      if (hit('b')) { if (!$('#people').hidden) people(false); else if (!$('#pause').hidden) pause(false); else if (localView) closeLocal(); else { const g = $('#in-guess'); if (!g.disabled && !$('#v-game').hidden) g.focus(); } }
       if (hit('start')) { if (!$('#v-lobby').hidden) $('#b-start').click(); else if (!$('#v-end').hidden) $('#b-again').click(); else if (!$('#v-game').hidden) pause($('#pause').hidden); }
       pads[gp.index] = now;
     }

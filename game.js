@@ -50,7 +50,7 @@ class Room {
   addPlayer(id, name, socket) {
     let p = this.players.get(id);
     if (!p) {
-      p = { id, name, score: 0, connected: true, guessed: false, roundPts: 0, lastGuess: 0, sockets: new Set() };
+      p = { id, name, score: 0, connected: true, guessed: false, skipped: false, roundPts: 0, lastGuess: 0, joinedAt: Date.now(), sockets: new Set() };
       this.players.set(id, p); this.order.push(id);
       this.push({ t: 'sys', text: `${name} entrou na sala` });
     }
@@ -135,7 +135,7 @@ class Room {
     this.used.add(this.title.id);
     this.key = buildAnswerKey(this.title.titles);
     this.revealed = []; this.correctCount = 0; this.firstDone = false;
-    for (const p of this.players.values()) { p.guessed = false; p.roundPts = 0; }
+    for (const p of this.players.values()) { p.guessed = false; p.skipped = false; p.skipSaid = false; p.roundPts = 0; }
     const conn = this.connected();
     this.pickerTurn = (this.pickerTurn + 1) % Math.max(1, conn.length);
     this.pickerId = conn[this.pickerTurn]?.id;
@@ -226,10 +226,22 @@ class Room {
     return r;
   }
 
+  // "Não sei": passa a vez. Se todo mundo que falta acertar passar, a rodada acaba na hora.
+  skip(id) {
+    const p = this.players.get(id);
+    if (!p || this.phase !== 'guessing' || p.guessed) return;
+    p.skipped = !p.skipped;
+    if (p.skipped && !p.skipSaid) { p.skipSaid = true; this.push({ t: 'skip', who: p.name, text: `${p.name} não sabe` }); }
+    this.checkAllGuessed();
+    this.broadcast();
+  }
+
   checkAllGuessed() {
     if (this.phase !== 'guessing') return;
     const conn = this.connected();
-    if (conn.length && conn.every((p) => p.guessed)) this.endRound();
+    if (!conn.length || !conn.every((p) => p.guessed || p.skipped)) return;
+    if (conn.some((p) => p.skipped)) this.push({ t: 'sys', text: conn.some((p) => p.guessed) ? 'Quem faltava passou a vez' : 'Ninguém sabia: todo mundo passou' });
+    this.endRound();
   }
 
   endRound() {
@@ -275,7 +287,7 @@ class Room {
       mask,
       answer: showAll && t ? { title: t.title, original: t.original, year: t.year, kind: t.kind, poster: t.poster } : null,
       players: this.order.map((id) => this.players.get(id)).filter(Boolean).map((p) => ({
-        id: p.id, name: p.name, score: p.score, connected: p.connected, guessed: p.guessed, roundPts: p.roundPts,
+        id: p.id, name: p.name, score: p.score, connected: p.connected, guessed: p.guessed, skipped: p.skipped, roundPts: p.roundPts, joinedAt: p.joinedAt,
       })),
       feed: this.feed.slice(-25),
     };
@@ -297,4 +309,16 @@ setInterval(() => {
   }
 }, 60000).unref();
 
-module.exports = { getRoom, createRoom, setGlobalCatalog, rooms };
+// quantas pessoas estão jogando agora no site todo
+function stats() {
+  let players = 0, playing = 0, active = 0;
+  for (const r of rooms.values()) {
+    const n = r.connected().length;
+    if (!n) continue;
+    active++; players += n;
+    if (r.phase !== 'lobby' && r.phase !== 'end') playing += n;
+  }
+  return { rooms: active, players, playing };
+}
+
+module.exports = { getRoom, createRoom, setGlobalCatalog, rooms, stats };

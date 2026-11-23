@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const express = require('express');
 const { Server } = require('socket.io');
 const { TMDB, Demo, demoSvg } = require('./catalog');
-const { getRoom, createRoom, setGlobalCatalog } = require('./game');
+const { getRoom, createRoom, setGlobalCatalog, stats } = require('./game');
 
 const PORT = process.env.PORT || 3000;
 const KEY = process.env.TMDB_TOKEN || process.env.TMDB_API_KEY || '';
@@ -61,9 +61,18 @@ io.on('connection', (socket) => {
     const r = room.guess(pid, text);
     if (r) socket.emit('verdict', { result: r.result, exact: !!r.exact, pts: r.pts || 0, place: r.place || 0, placeBonus: r.placeBonus || 0, exactBonus: r.exactBonus || 0 });
   });
+  socket.on('skip', () => room && room.skip(pid));
+  socket.emit('stats', stats());
   socket.on('leave', () => { if (room) room.removePlayer(pid, socket.id); room = null; });
   socket.on('disconnect', () => room && room.dropSocket(pid, socket.id));
 });
+
+let lastStats = '';
+setInterval(() => {
+  const st = stats(); const k = JSON.stringify(st);
+  if (k !== lastStats) { lastStats = k; io.emit('stats', st); }
+}, 3000).unref();
+app.get('/stats', (_q, r) => r.json(stats()));
 
 server.listen(PORT, '0.0.0.0', () => {
   const ips = Object.values(os.networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i.address);
