@@ -102,7 +102,7 @@ class Room {
   }
   updateSettings(s) {
     const cats = (s.cats || []).filter((c) => ['filmes', 'series', 'animes', 'desenhos', 'musicas'].includes(c));
-    if (cats.length) this.settings.cats = cats;
+    if (cats.length) this.settings.cats = cats.includes('musicas') ? ['musicas'] : cats;
     if ([5, 10, 15, 20].includes(+s.rounds)) this.settings.rounds = +s.rounds;
     if ([30, 45, 60, 90].includes(+s.time)) this.settings.time = +s.time;
     if (['facil', 'medio', 'dificil'].includes(s.diff)) this.settings.diff = s.diff;
@@ -115,13 +115,8 @@ class Room {
 
   async pickTitle() {
     const { cats, diff, musicStyle } = this.settings;
-    const film = cats.filter((c) => c !== 'musicas');
-    const canFilm = film.length && this.catalog;
-    const wantMusic = cats.includes('musicas') && (!canFilm || Math.random() < 1 / cats.length);
-    if (wantMusic) {
-      try { return await musicSource.pick(musicStyle, diff, this.used); } catch (e) { if (!canFilm) throw e; }
-    }
-    return this.catalog.pick(film, diff, this.used);
+    if (cats.includes('musicas')) return musicSource.pick(musicStyle, diff, this.used); // modo música: só toca
+    return this.catalog.pick(cats, diff, this.used);
   }
 
   // ---------- partida ----------
@@ -146,7 +141,7 @@ class Room {
       this.title = await this.pickTitle();
     } catch (e) {
       this.phase = 'lobby'; this.catalogError = e.message; this.round = 0;
-      this.push({ t: 'sys', text: 'Erro ao buscar títulos: ' + e.message });
+      this.push({ t: 'sys', text: (this.settings.cats.includes('musicas') ? 'Erro ao buscar músicas: ' : 'Erro ao buscar títulos: ') + e.message });
       return this.broadcast();
     }
     if (this.phase !== 'loading') return;

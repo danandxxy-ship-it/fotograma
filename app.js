@@ -73,8 +73,9 @@
   const sendSettings = (patch) => socket.emit('settings', { ...S.settings, ...patch });
   $('#opt-cats').onclick = (e) => {
     const b = e.target.closest('button'); if (!b || !isHost()) return;
-    const set = new Set(S.settings.cats);
-    set.has(b.dataset.v) ? set.delete(b.dataset.v) : set.add(b.dataset.v);
+    let set = new Set(S.settings.cats);
+    if (b.dataset.v === 'musicas') set = new Set(set.has('musicas') ? ['filmes', 'series', 'animes', 'desenhos'] : ['musicas']);
+    else { set.delete('musicas'); set.has(b.dataset.v) ? set.delete(b.dataset.v) : set.add(b.dataset.v); }
     if (set.size) sendSettings({ cats: [...set] });
   };
   for (const [id, key] of [['#opt-rounds', 'rounds'], ['#opt-time', 'time'], ['#opt-diff', 'diff'], ['#opt-music', 'musicStyle']]) {

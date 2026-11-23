@@ -101,10 +101,21 @@ class Music {
   async tracksOf(artist) {
     const key = norm(artist);
     if (this.cache.has(key)) return this.cache.get(key);
-    const u = 'https://itunes.apple.com/search?media=music&entity=song&country=BR&limit=40&term=' + encodeURIComponent(artist);
-    const j = await this.fetchJson(u);
+    let raw;
+    try {
+      const j = await this.fetchJson('https://itunes.apple.com/search?media=music&entity=song&country=BR&limit=40&term=' + encodeURIComponent(artist));
+      raw = j.results || [];
+      if (!raw.length) throw new Error('vazio');
+    } catch (e) { // reserva: Deezer (também tem prévia de 30 s, sem chave)
+      const j = await this.fetchJson('https://api.deezer.com/search?limit=40&q=' + encodeURIComponent(`artist:"${artist}"`));
+      if (j.error) throw new Error('API de músicas indisponível agora. Tente de novo em instantes.');
+      raw = (j.data || []).map((d) => ({
+        trackId: 'dz' + d.id, trackName: d.title, artistName: d.artist && d.artist.name, collectionName: d.album && d.album.title,
+        previewUrl: d.preview, artworkUrl100: d.album && (d.album.cover_xl || d.album.cover_big), releaseDate: null,
+      }));
+    }
     const seen = new Set();
-    const list = (j.results || []).filter((x) => {
+    const list = raw.filter((x) => {
       if (!x.previewUrl || !x.trackName || !x.artistName) return false;
       const a = norm(x.artistName);
       if (!(a === key || a.includes(key) || key.includes(a))) return false;
