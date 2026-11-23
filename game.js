@@ -1,5 +1,6 @@
 const { buildAnswerKey, check } = require('./matcher');
 const { TMDB, Demo } = require('./catalog');
+const { Music, STYLES } = require('./music');
 
 const PICK_MS = 15000;
 const REVEAL_MS = 8000;
@@ -10,6 +11,8 @@ const ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 
 const rooms = new Map();
 let globalCatalog = null;
+let musicSource = new Music();
+function setGlobalMusic(m) { musicSource = m; }
 
 function setGlobalCatalog(c) { globalCatalog = c; }
 
@@ -39,7 +42,7 @@ class Room {
     this.players = new Map(); // id -> player
     this.order = [];
     this.hostId = null;
-    this.settings = { cats: ['filmes', 'series', 'animes', 'desenhos'], rounds: 10, time: 60, diff: 'medio' };
+    this.settings = { cats: ['filmes', 'series', 'animes', 'desenhos'], rounds: 10, time: 60, diff: 'medio', musicStyle: 'mix' };
     this.phase = 'lobby';
     this.catalog = globalCatalog; this.catalogError = null;
     this.round = 0; this.used = new Set(); this.timers = [];
@@ -98,12 +101,27 @@ class Room {
     this.catalog = c; this.catalogError = null; this.broadcast();
   }
   updateSettings(s) {
-    const cats = (s.cats || []).filter((c) => ['filmes', 'series', 'animes', 'desenhos'].includes(c));
+    const cats = (s.cats || []).filter((c) => ['filmes', 'series', 'animes', 'desenhos', 'musicas'].includes(c));
     if (cats.length) this.settings.cats = cats;
     if ([5, 10, 15, 20].includes(+s.rounds)) this.settings.rounds = +s.rounds;
     if ([30, 45, 60, 90].includes(+s.time)) this.settings.time = +s.time;
     if (['facil', 'medio', 'dificil'].includes(s.diff)) this.settings.diff = s.diff;
+    if (STYLES.includes(s.musicStyle)) this.settings.musicStyle = s.musicStyle;
     this.broadcast();
+  }
+
+  // a chave do TMDB só é exigida se houver filmes, séries, animes ou desenhos
+  needKey() { return !this.catalog && this.settings.cats.some((c) => c !== 'musicas'); }
+
+  async pickTitle() {
+    const { cats, diff, musicStyle } = this.settings;
+    const film = cats.filter((c) => c !== 'musicas');
+    const canFilm = film.length && this.catalog;
+    const wantMusic = cats.includes('musicas') && (!canFilm || Math.random() < 1 / cats.length);
+    if (wantMusic) {
+      try { return await musicSource.pick(musicStyle, diff, this.used); } catch (e) { if (!canFilm) throw e; }
+    }
+    return this.catalog.pick(film, diff, this.used);
   }
 
   // ---------- partida ----------
@@ -111,7 +129,7 @@ class Room {
   later(ms, fn) { this.timers.push(setTimeout(fn, ms)); }
 
   start() {
-    if (!this.catalog) return;
+    if (this.needKey()) return;
     this.clearTimers();
     this.round = 0; this.used.clear(); this.pickerTurn = -1;
     for (const p of this.players.values()) p.score = 0;
@@ -125,7 +143,7 @@ class Room {
     this.round++;
     this.phase = 'loading'; this.broadcast();
     try {
-      this.title = await this.catalog.pick(this.settings.cats, this.settings.diff, this.used);
+      this.title = await this.pickTitle();
     } catch (e) {
       this.phase = 'lobby'; this.catalogError = e.message; this.round = 0;
       this.push({ t: 'sys', text: 'Erro ao buscar títulos: ' + e.message });
@@ -133,7 +151,9 @@ class Room {
     }
     if (this.phase !== 'loading') return;
     this.used.add(this.title.id);
+    if (this.title.artistKey) this.used.add(this.title.artistKey);
     this.key = buildAnswerKey(this.title.titles);
+    this.artistKey = this.title.artistTitles ? buildAnswerKey(this.title.artistTitles) : null;
     this.revealed = []; this.correctCount = 0; this.firstDone = false;
     for (const p of this.players.values()) { p.guessed = false; p.skipped = false; p.skipSaid = false; p.roundPts = 0; }
     const conn = this.connected();
@@ -160,7 +180,7 @@ class Room {
       const T = this.settings.time * 1000;
       this.startedAt = Date.now(); this.endsAt = this.startedAt + T;
       const who = this.players.get(this.pickerId)?.name || 'Projecionista';
-      this.push({ t: 'sys', text: auto ? `Frame ${i + 1} sorteado` : `${who} escolheu o frame ${i + 1}` });
+      this.push({ t: 'sys', text: (() => { const w = this.title && this.title.isMusic ? 'Trecho' : 'Frame'; return auto ? `${w} ${i + 1} sorteado` : `${who} escolheu ${w === 'Trecho' ? 'o trecho' : 'o frame'} ${i + 1}`; })() });
       this.later(T * 0.3 + 30, () => this.broadcast());
       this.later(T * 0.6 + 30, () => this.broadcast());
       this.later(T * 0.45, () => this.autoExtra());
@@ -199,7 +219,15 @@ class Room {
     p.lastGuess = now;
     const clean = String(text || '').slice(0, 80).trim();
     if (!clean) return null;
-    const r = check(clean, this.key);
+    let r = check(clean, this.key);
+    let artistOnly = false;
+    if (this.artistKey) {
+      // música: vale acertar a música OU o artista (só o artista vale 60%)
+      const ra = check(clean, this.artistKey);
+      if (r.result !== 'correct' && ra.result === 'correct') { r = { ...ra, exact: false }; artistOnly = true; }
+      else if (r.result === 'wrong' && ra.result === 'close') r = ra;
+      else r.score = Math.max(r.score, ra.score);
+    }
     if (r.result === 'correct') {
       const T = this.settings.time * 1000;
       const left = Math.max(0, this.endsAt - now) / T;
@@ -208,14 +236,14 @@ class Room {
       const speed = Math.round((100 + 200 * left) * mult);
       const placeBonus = PLACE_BONUS[place - 1] || 0;
       const exactBonus = r.exact ? EXACT_BONUS : 0;
-      const pts = speed + placeBonus + exactBonus;
+      const pts = Math.round((speed + placeBonus + exactBonus) * (artistOnly ? 0.6 : 1));
       this.firstDone = true;
       p.guessed = true; p.roundPts = pts; p.score += pts;
-      r.pts = pts; r.place = place; r.placeBonus = placeBonus; r.exactBonus = exactBonus;
+      r.artistOnly = artistOnly; r.pts = pts; r.place = place; r.placeBonus = placeBonus; r.exactBonus = exactBonus;
       const picker = this.players.get(this.pickerId);
       if (picker && picker.id !== id) { picker.score += 20; picker.roundPts += 20; }
       // a mensagem pública nunca contém o palpite: o nome só aparece no fim da rodada
-      this.push({ t: 'ok', who: p.name, text: `${p.name} acertou em ${place}º${r.exact ? ', título exato' : ''}! +${pts}` });
+      this.push({ t: 'ok', who: p.name, text: `${p.name} acertou em ${place}º${artistOnly ? ', só o artista' : r.exact ? ', título exato' : ''}! +${pts}` });
       this.checkAllGuessed();
     } else {
       // chute errado só aparece para os outros se estiver longe da resposta (não dá pista)
@@ -249,7 +277,7 @@ class Room {
     this.clearTimers();
     this.phase = 'reveal';
     this.endsAt = Date.now() + REVEAL_MS;
-    this.push({ t: 'answer', text: `Era: ${this.title.title}${this.title.year ? ' (' + this.title.year + ')' : ''}` });
+    this.push({ t: 'answer', text: `Era: ${this.title.title}${this.title.artist ? ' — ' + this.title.artist : ''}${this.title.year ? ' (' + this.title.year + ')' : ''}` });
     this.later(REVEAL_MS, () => this.nextRound());
     this.broadcast();
   }
@@ -276,16 +304,18 @@ class Room {
     const t = this.title;
     return {
       code: this.code, me: forId, hostId: this.hostId, phase: this.phase,
-      needKey: !this.catalog, catalogError: this.catalogError,
+      needKey: this.needKey(), catalogError: this.catalogError,
       settings: this.settings, round: this.round, rounds: this.settings.rounds,
       pickerId: this.pickerId, endsIn: this.endsAt ? Math.max(0, this.endsAt - now) : 0,
       totalMs: this.phase === 'picking' ? PICK_MS : this.phase === 'reveal' ? REVEAL_MS : T,
       canExtraIn: this.phase === 'guessing' ? Math.max(0, 8000 - (now - this.startedAt)) : 0,
       frameCount: t && this.phase !== 'lobby' && this.phase !== 'loading' ? t.frames.length : 0,
-      revealed: (this.revealed || []).map((i) => ({ i, full: t.frames[i].full, thumb: t.frames[i].thumb })),
+      mode: t && !['lobby', 'loading'].includes(this.phase) ? (t.isMusic ? 'music' : 'film') : null,
+      audio: t && t.isMusic && ['picking', 'guessing', 'reveal'].includes(this.phase) ? t.audio : null,
+      revealed: (this.revealed || []).map((i) => ({ i, full: t.frames[i].full, thumb: t.frames[i].thumb, start: t.frames[i].start, len: t.frames[i].len })),
       allFrames: showAll && t ? t.frames.map((f, i) => ({ i, thumb: f.thumb, full: f.full })) : null,
       mask,
-      answer: showAll && t ? { title: t.title, original: t.original, year: t.year, kind: t.kind, poster: t.poster } : null,
+      answer: showAll && t ? { title: t.title, original: t.original, artist: t.artist || null, year: t.year, kind: t.kind, poster: t.poster } : null,
       players: this.order.map((id) => this.players.get(id)).filter(Boolean).map((p) => ({
         id: p.id, name: p.name, score: p.score, connected: p.connected, guessed: p.guessed, skipped: p.skipped, roundPts: p.roundPts, joinedAt: p.joinedAt,
       })),
@@ -321,4 +351,4 @@ function stats() {
   return { rooms: active, players, playing };
 }
 
-module.exports = { getRoom, createRoom, setGlobalCatalog, rooms, stats };
+module.exports = { getRoom, createRoom, setGlobalCatalog, setGlobalMusic, rooms, stats };

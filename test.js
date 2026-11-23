@@ -29,5 +29,25 @@ for (const [titles, guesses] of cases) {
     if (!ok) { fail++; console.log(`FALHOU  "${g}" → ${r.result} (${r.score.toFixed(2)}), esperado ${exp}  [${titles[0]}]`); }
   }
 }
-console.log(`${total - fail}/${total} casos ok`);
-process.exit(fail ? 1 : 0);
+
+// ---------- modo música ----------
+{
+  const { cleanTitle, artistParts } = require('./music');
+  const t = (a, b) => { total++; if (a !== b) { fail++; console.log(`FALHOU limpeza: "${a}" esperado "${b}"`); } };
+  t(cleanTitle("Don't Stop Me Now - Remastered 2011"), "Don't Stop Me Now");
+  t(cleanTitle('Bohemian Rhapsody (Remastered 2011)'), 'Bohemian Rhapsody');
+  t(cleanTitle('Dancing Queen'), 'Dancing Queen');
+  t(cleanTitle('Envolver (feat. Outro Artista)'), 'Envolver');
+  t(cleanTitle('Evidências - Ao Vivo'), 'Evidências');
+  t(cleanTitle('(I Can\'t Get No) Satisfaction'), '(I Can\'t Get No) Satisfaction');
+  const song = buildAnswerKey([cleanTitle("Don't Stop Me Now - Remastered 2011")]);
+  const artist = buildAnswerKey(['Queen', 'Queen']);
+  const m = (guess, key, exp) => { total++; const r = check(guess, key).result; if (r !== exp) { fail++; console.log(`FALHOU música "${guess}" → ${r}, esperado ${exp}`); } };
+  m('dont stop me now', song, 'correct'); m('don t stop me now', song, 'correct'); m('remastered', song, 'wrong');
+  m('queen', artist, 'correct'); m('quenn', artist, 'correct'); m('queens', artist, 'correct'); m('king', artist, 'wrong');
+  const dupla = buildAnswerKey(['Jorge & Mateus', 'Jorge & Mateus']);
+  m('jorge e mateus', dupla, 'correct'); m('jorge & mateus', dupla, 'correct'); m('mateus', dupla, 'close');
+  total++; if (artistParts('Anitta, Cardi B').join('|') !== 'Anitta|Cardi B') { fail++; console.log('FALHOU artistParts'); }
+  console.log(`${total - fail}/${total} casos ok (com música)`);
+  process.exit(fail ? 1 : 0);
+}

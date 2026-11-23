@@ -42,3 +42,12 @@ Direcional/analógico move a seleção, **A** confirma, **B** volta ou vai pro c
 
 ---
 Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.
+
+
+## Modo música
+
+- Marque **Músicas** no lobby (sozinho ou misturado com filmes, séries etc.) e escolha o estilo: Misturado, Brasil, Rock, Pop, Rap, Eletrônica ou Anos 80 e 90.
+- Fonte: iTunes Search API da Apple (sem chave), prévia oficial de 30 s. Toca um trecho de 4 s por vez; o projecionista solta até 3 trechos e a prévia inteira toca na revelação.
+- Vale o nome da música ou o da banda/cantor. Acertar só o artista rende 60% dos pontos.
+- Sala só de músicas não precisa do token do TMDB.
+- Se a busca de música falhar, a rodada cai para filme/série.

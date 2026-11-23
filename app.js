@@ -77,7 +77,7 @@
     set.has(b.dataset.v) ? set.delete(b.dataset.v) : set.add(b.dataset.v);
     if (set.size) sendSettings({ cats: [...set] });
   };
-  for (const [id, key] of [['#opt-rounds', 'rounds'], ['#opt-time', 'time'], ['#opt-diff', 'diff']]) {
+  for (const [id, key] of [['#opt-rounds', 'rounds'], ['#opt-time', 'time'], ['#opt-diff', 'diff'], ['#opt-music', 'musicStyle']]) {
     $(id).onclick = (e) => { const b = e.target.closest('button'); if (b && isHost()) sendSettings({ [key]: b.dataset.v }); };
   }
   $('#b-key').onclick = () => { const k = $('#in-key').value.trim(); if (k) { $('#lobby-msg').textContent = 'Testando a chave…'; socket.emit('key', k); } };
@@ -87,7 +87,11 @@
 
   // ---------- jogo ----------
   $('#cells').onclick = (e) => {
-    const b = e.target.closest('.cell'); if (!b || b.disabled) return;
+    const b = e.target.closest('.cell'); if (!b) return;
+    if (S && S.mode === 'music' && b.classList.contains('lit')) { // trecho já tocado: ouvir de novo
+      const r = S.revealed.find((x) => x.i === +b.dataset.i); if (r) playSeg(r.start, r.len); return;
+    }
+    if (b.disabled) return;
     socket.emit('pick', +b.dataset.i);
   };
   $('#f-guess').onsubmit = (e) => {
@@ -99,12 +103,13 @@
   socket.on('verdict', (v) => {
     const r = v.result;
     const el = $('#verdict');
-    el.textContent = r === 'correct' ? (v.exact ? 'Título exato!' : v.place === 1 ? 'Primeiro!' : 'Acertou!') : r === 'close' ? 'Quase!' : 'Não é…';
+    el.textContent = r === 'correct' ? (v.artistOnly ? 'Artista certo!' : v.exact ? 'Título exato!' : v.place === 1 ? 'Primeiro!' : 'Acertou!') : r === 'close' ? 'Quase!' : 'Não é…';
     el.className = 'verdict show ' + r;
     if (r === 'correct') {
       const parts = [];
       if (v.placeBonus) parts.push(`${v.place}º lugar +${v.placeBonus}`);
       if (v.exactBonus) parts.push(`título exato +${v.exactBonus}`);
+      if (v.artistOnly) parts.push('só o artista, vale 60%');
       $('#bonus').textContent = `+${v.pts} pontos` + (parts.length ? ` (${parts.join(', ')})` : '');
       $('#bonus').hidden = false;
     }
@@ -168,7 +173,7 @@
   $('#p-howto').onclick = () => openLocal('howto');
   function leave() {
     socket.emit('leave');
-    inRoom = false; S = null; myCode = null; localView = null; store.set('room', '');
+    stopAudio(); inRoom = false; S = null; myCode = null; localView = null; store.set('room', '');
     history.replaceState(null, '', '/');
     pause(false); $('#f-join').hidden = true; $('#in-code').value = '';
     show('home');
@@ -215,6 +220,42 @@
     render(prev);
   });
 
+  // ---------- áudio das músicas (prévia de 30 s, trechos de 4 s) ----------
+  const aud = new Audio(); aud.preload = 'auto'; aud.setAttribute('playsinline', '');
+  let segTimer = null, audUrl = '';
+  const SILENT = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==';
+  aud.addEventListener('play', () => $('#vinyl').classList.add('playing'));
+  ['pause', 'ended'].forEach((ev) => aud.addEventListener(ev, () => $('#vinyl').classList.remove('playing')));
+  // celular só deixa tocar áudio depois de um toque: libera no primeiro
+  const unlockAudio = () => {
+    aud.muted = true; aud.src = SILENT; audUrl = '';
+    aud.play().then(() => { aud.pause(); aud.muted = false; }).catch(() => { aud.muted = false; });
+  };
+  window.addEventListener('pointerdown', unlockAudio, { once: true });
+  window.addEventListener('keydown', unlockAudio, { once: true });
+  function stopAudio() { clearTimeout(segTimer); try { aud.pause(); } catch {} }
+  function loadAudio(url) { if (url && audUrl !== url) { audUrl = url; aud.src = url; aud.load(); } }
+  function playSeg(start, len) {
+    if (!S || !S.audio) return;
+    stopAudio();
+    if (!SFX.on || SFX.volume <= 0) return;
+    loadAudio(S.audio);
+    aud.volume = Math.max(0.2, SFX.volume);
+    const go = () => {
+      try { aud.currentTime = start; } catch {}
+      aud.play().catch(() => {});
+      clearTimeout(segTimer); segTimer = setTimeout(() => aud.pause(), len * 1000);
+    };
+    if (aud.readyState >= 1) go(); else aud.addEventListener('loadedmetadata', go, { once: true });
+  }
+  $('#b-replay').onclick = () => { const r = S && S.revealed[S.revealed.length - 1]; if (r) playSeg(r.start, r.len); };
+
+  function waveSvg(seed) {
+    let x = seed * 17 + 3; const r = () => ((x = (x * 9301 + 49297) % 233280) / 233280);
+    let bars = ''; for (let k = 0; k < 9; k++) { const h = 4 + r() * 20; bars += `<rect x="${3 + k * 7}" y="${14 - h / 2}" width="3.4" height="${h}" rx="1.2"/>`; }
+    return `<svg class="wave" viewBox="0 0 66 28" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>`;
+  }
+
   function sounds(prev, st) {
     if (!prev) return;
     const ph = st.phase, pph = prev.phase;
@@ -222,10 +263,15 @@
       if (ph === 'picking') SFX.play('reel');
       if (ph === 'reveal') SFX.play('reveal');
       if (ph === 'end') SFX.play('finale');
+      if (ph === 'reveal' && st.mode === 'music') setTimeout(() => { if (S && S.phase === 'reveal') playSeg(0, 30); }, 1100);
+      if (ph !== 'guessing' && ph !== 'reveal') stopAudio();
     }
+    if (st.mode === 'music' && ph === 'picking' && st.audio) loadAudio(st.audio); // já baixa enquanto o DJ escolhe
     const nPrev = pph === 'lobby' || prev.round !== st.round ? 0 : (prev.revealed || []).length;
     if ((ph === 'guessing' || ph === 'reveal') && st.revealed.length > nPrev && ph !== 'reveal') {
-      SFX.play('pencil'); setTimeout(() => SFX.play('projector'), 260);
+      SFX.play('pencil');
+      if (st.mode === 'music') { const r = st.revealed[st.revealed.length - 1]; setTimeout(() => playSeg(r.start, r.len), 350); }
+      else setTimeout(() => SFX.play('projector'), 260);
     }
     if (ph === 'guessing' && st.mask && st.mask !== prev.mask) SFX.play('hint');
     if (ph === 'lobby' && st.players.length > prev.players.length) SFX.play('join');
@@ -266,6 +312,8 @@
     for (const [id, key] of [['#opt-rounds', 'rounds'], ['#opt-time', 'time'], ['#opt-diff', 'diff']]) {
       for (const b of $(id).children) b.setAttribute('aria-pressed', String(S.settings[key]) === b.dataset.v);
     }
+    $('#opt-music-box').hidden = !S.settings.cats.includes('musicas');
+    for (const b of $('#opt-music').children) b.setAttribute('aria-pressed', S.settings.musicStyle === b.dataset.v);
     $('#b-start').disabled = S.needKey;
     $('#b-start').textContent = S.needKey ? 'Cole a chave para rodar' : 'Rodar o filme';
     if (S.catalogError) $('#lobby-msg').textContent = S.catalogError;
@@ -289,10 +337,11 @@
     $('#edge-a').textContent = `FG 400 ▸ ROLO ${S.round}`;
     $('#my-score').textContent = mine.score;
 
+    const music = S.mode === 'music';
     const labels = {
       loading: 'Trocando o rolo…',
-      picking: amPicker ? 'Escolha um frame' : `${nameOf(S.pickerId)} escolhe o frame`,
-      guessing: mine.guessed ? 'Você acertou! Aguarde' : 'Que obra é essa?',
+      picking: amPicker ? (music ? 'Escolha um trecho' : 'Escolha um frame') : `${nameOf(S.pickerId)} escolhe o ${music ? 'trecho' : 'frame'}`,
+      guessing: mine.guessed ? 'Você acertou! Aguarde' : music ? 'Que música é essa?' : 'Que obra é essa?',
       reveal: 'Revelado',
     };
     $('#phase-label').textContent = labels[ph] || '';
@@ -301,7 +350,16 @@
     const screen = $('#screen'), img = $('#frame-main');
     const latest = S.revealed[S.revealed.length - 1];
     const revealKey = S.round + ':' + S.revealed.map((r) => r.i).join(',');
-    if (latest && (ph === 'guessing' || ph === 'reveal')) {
+    const showVinyl = music && (ph === 'guessing' || ph === 'reveal');
+    $('#vinyl').hidden = !showVinyl;
+    $('#mute-note').hidden = !(showVinyl && !(SFX.on && SFX.volume > 0));
+    if (music) {
+      img.hidden = true; img.dataset.src = '';
+      $('#screen-empty').hidden = showVinyl;
+      if (!showVinyl) $('#screen-msg').textContent = ph === 'loading' ? 'Trocando a fita…' : amPicker
+        ? 'Você é o DJ. Toque num trecho da fita para tocar.'
+        : `${nameOf(S.pickerId)} está escolhendo o trecho…`;
+    } else if (latest && (ph === 'guessing' || ph === 'reveal')) {
       if (img.dataset.src !== latest.full) {
         img.dataset.src = latest.full; img.src = latest.full; img.hidden = false;
         screen.classList.remove('flick'); void screen.offsetWidth; screen.classList.add('flick');
@@ -319,7 +377,8 @@
       $('#answer').hidden = false;
       $('#answer-kind').textContent = [S.answer.kind, S.answer.year].filter(Boolean).join(', ');
       $('#answer-title').textContent = S.answer.title;
-      $('#answer-orig').textContent = S.answer.original && S.answer.original !== S.answer.title ? S.answer.original : '';
+      $('#answer-orig').textContent = S.answer.artist ? S.answer.artist : (S.answer.original && S.answer.original !== S.answer.title ? S.answer.original : '');
+      $('#answer').classList.toggle('sq', music);
       const pImg = $('#answer-poster');
       if (S.answer.poster) { pImg.src = S.answer.poster; pImg.hidden = false; } else pImg.hidden = true;
     } else $('#answer').hidden = true;
@@ -337,14 +396,16 @@
       $('#cells').innerHTML = Array.from({ length: ph === 'loading' ? 8 : n }, (_, i) => {
         const t = thumbs[i];
         const on = revealedIdx.has(i);
-        const dis = !canPick || on;
-        return `<button class="cell${on && freshSet.has(i) ? ' fresh' : ''}" data-i="${i}" ${dis ? 'disabled' : ''} aria-label="Frame ${i + 1}${on ? ', projetado' : ''}">` +
-          (t ? `<img src="${esc(t)}" alt="" loading="lazy">` : '') + `<span class="n">${i + 1}${'ABCDEFGH'[i]}</span>` + (on ? circleSvg(i + S.round * 8) : '') + '</button>';
+        const dis = music && on ? false : (!canPick || on);
+        return `<button class="cell${music ? ' mus' : ''}${music && on ? ' lit' : ''}${on && freshSet.has(i) ? ' fresh' : ''}" data-i="${i}" ${dis ? 'disabled' : ''} aria-label="${music ? 'Trecho' : 'Frame'} ${i + 1}${on ? (music ? ', toque para ouvir de novo' : ', projetado') : ''}">` +
+          (music ? waveSvg(i + 1 + S.round * 5) : t ? `<img src="${esc(t)}" alt="" loading="lazy">` : '') + `<span class="n">${i + 1}${'ABCDEFGH'[i]}</span>` + (on ? circleSvg(i + S.round * 8) : '') + '</button>';
       }).join('');
       lastRevealKey = revealKey;
       if (canPick && ph === 'picking' && !matchMedia('(pointer:coarse)').matches) $('#cells .cell:not(:disabled)')?.focus();
     }
-    $('.sheet-strip .edge-b').textContent = ph === 'guessing' && amPicker && S.revealed.length < 3 ? '◂ toque para dar mais uma pista' : ph === 'picking' && amPicker ? '◂ escolha um frame' : '◂ ◂ ◂';
+    $('.sheet-strip .edge-b').textContent = ph === 'guessing' && amPicker && S.revealed.length < 3 ? (music ? '◂ toque para soltar mais um trecho' : '◂ toque para dar mais uma pista')
+      : ph === 'picking' && amPicker ? (music ? '◂ escolha um trecho' : '◂ escolha um frame')
+      : music && ph === 'guessing' ? '◂ toque num trecho para ouvir de novo' : '◂ ◂ ◂';
 
     // conversa
     const feed = $('#feed');
@@ -377,7 +438,7 @@
     const canGuess = ph === 'guessing' && !mine.guessed;
     inp.disabled = !canGuess; $('#b-guess').disabled = !canGuess;
     if (ph !== 'guessing' || !mine.guessed) $('#bonus').hidden = true;
-    inp.placeholder = ph === 'guessing' ? (mine.guessed ? 'Você já acertou' : mine.skipped ? 'Ainda dá pra chutar' : 'Seu palpite') : ph === 'picking' ? 'Esperando o frame…' : 'Próximo rolo já vem';
+    inp.placeholder = ph === 'guessing' ? (mine.guessed ? 'Você já acertou' : mine.skipped ? 'Ainda dá pra chutar' : music ? 'Música ou artista' : 'Seu palpite') : ph === 'picking' ? (music ? 'Esperando o trecho…' : 'Esperando o frame…') : 'Próximo rolo já vem';
     if (canGuess && (lastPhase !== 'guessing') && !matchMedia('(pointer:coarse)').matches) inp.focus();
     lastPhase = ph;
   }

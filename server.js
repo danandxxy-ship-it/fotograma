@@ -5,13 +5,14 @@ const crypto = require('crypto');
 const express = require('express');
 const { Server } = require('socket.io');
 const { TMDB, Demo, demoSvg } = require('./catalog');
-const { getRoom, createRoom, setGlobalCatalog, stats } = require('./game');
+const { getRoom, createRoom, setGlobalCatalog, setGlobalMusic, stats } = require('./game');
+const { DemoMusic, demoWavPath } = require('./music');
 
 const PORT = process.env.PORT || 3000;
 const KEY = process.env.TMDB_TOKEN || process.env.TMDB_API_KEY || '';
 const MOCK = process.env.MOCK === '1';
 
-if (MOCK) setGlobalCatalog(new Demo());
+if (MOCK) { setGlobalCatalog(new Demo()); setGlobalMusic(new DemoMusic()); }
 else if (KEY) setGlobalCatalog(new TMDB(KEY));
 
 const app = express();
@@ -20,6 +21,7 @@ app.get('/', (_q, r) => { r.set('Cache-Control', 'no-cache'); r.sendFile(path.jo
 app.get('/:file', (req, res, next) => PUBLIC.has(req.params.file) ? res.sendFile(path.join(__dirname, req.params.file), { maxAge: '1h' }) : next());
 if (MOCK) {
   app.get('/demo/frame/:i/:n.svg', (req, res) => res.type('svg').send(demoSvg(+req.params.i, +req.params.n)));
+  app.get('/demo/audio/:i.wav', (req, res) => res.sendFile(demoWavPath(+req.params.i || 0)));
   app.get('/demo/poster/:i.svg', (req, res) => res.type('svg').send(demoSvg(+req.params.i, 99, 342, 513)));
 }
 app.get('/health', (_q, r) => r.json({ ok: true }));
@@ -59,7 +61,7 @@ io.on('connection', (socket) => {
   socket.on('guess', (text) => {
     if (!room) return;
     const r = room.guess(pid, text);
-    if (r) socket.emit('verdict', { result: r.result, exact: !!r.exact, pts: r.pts || 0, place: r.place || 0, placeBonus: r.placeBonus || 0, exactBonus: r.exactBonus || 0 });
+    if (r) socket.emit('verdict', { result: r.result, exact: !!r.exact, pts: r.pts || 0, artistOnly: !!r.artistOnly, place: r.place || 0, placeBonus: r.placeBonus || 0, exactBonus: r.exactBonus || 0 });
   });
   socket.on('skip', () => room && room.skip(pid));
   socket.emit('stats', stats());

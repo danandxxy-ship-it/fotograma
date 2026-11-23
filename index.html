@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#dfe7ea">
 <title>Fotograma — adivinhe pelo frame</title>
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 <main id="app">
@@ -17,7 +17,7 @@
       <div class="bulbs" aria-hidden="true"></div>
       <p class="now">Em cartaz hoje</p>
       <h1 class="board" id="title-board" aria-label="Fotograma">Fotograma</h1>
-      <p class="tag">Adivinhe o filme, série, anime ou desenho pelo frame</p>
+      <p class="tag">Adivinhe filmes, séries, animes, desenhos e músicas</p>
       <p class="live" id="live-count" aria-live="polite"></p>
     </header>
 
@@ -54,6 +54,7 @@
       <li><b>O projecionista escolhe.</b> A cada rodada uma pessoa vê a película com 8 frames cobertos e toca num deles.</li>
       <li><b>Todo mundo chuta.</b> Escreva o nome do filme, série, anime ou desenho. Erro de digitação, falta de acento e nome em inglês ou no idioma original valem.</li>
       <li><b>Dicas aparecem.</b> Com o tempo surgem os tracinhos do título, depois algumas letras e mais frames da mesma obra.</li>
+      <li><b>Modo música.</b> No lugar do frame toca um trecho de 4 segundos. Chute o nome da música, da banda ou do cantor. Acertar só o artista vale 60%. A prévia inteira toca quando a rodada termina.</li>
       <li><b>Ninguém entrega a resposta.</b> Quando alguém acerta, os outros só veem que a pessoa acertou. O nome aparece no fim da rodada, quando o tempo acaba ou todos acertam.</li>
     </ol>
     <h3 class="pencil">Pontos</h3>
@@ -63,6 +64,7 @@
       <tr><td>Segundo</td><td>+70</td></tr>
       <tr><td>Terceiro</td><td>+35</td></tr>
       <tr><td>Título exato e completo</td><td>+80</td></tr>
+      <tr><td>Só o artista (modo música)</td><td>60% do valor</td></tr>
       <tr><td>Projecionista</td><td>+20 por pessoa que acerta</td></tr>
       <tr><td>Frames extras revelados</td><td>o acerto vale menos</td></tr>
     </table>
@@ -116,6 +118,14 @@
         <div class="mounts" id="opt-cats">
           <button data-v="filmes">Filmes</button><button data-v="series">Séries</button>
           <button data-v="animes">Animes</button><button data-v="desenhos">Desenhos</button>
+          <button data-v="musicas" class="wide">Músicas</button>
+        </div>
+      </fieldset>
+      <fieldset class="opt" id="opt-music-box" hidden>
+        <legend>Estilo das músicas</legend>
+        <div class="chips" id="opt-music">
+          <button data-v="mix">Misturado</button><button data-v="br">Brasil</button><button data-v="rock">Rock</button>
+          <button data-v="pop">Pop</button><button data-v="rap">Rap</button><button data-v="eletro">Eletrônica</button><button data-v="retro">Anos 80 e 90</button>
         </div>
       </fieldset>
       <fieldset class="opt">
@@ -165,6 +175,13 @@
         <img id="frame-main" alt="" hidden>
         <div class="screen-empty" id="screen-empty">
           <span id="screen-msg">Ligando o projetor…</span>
+        </div>
+        <div class="vinyl" id="vinyl" hidden>
+          <div class="eq l" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <div class="record" aria-hidden="true"><span>?</span></div>
+          <div class="eq r" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <button type="button" class="replay" id="b-replay">Tocar de novo</button>
+          <p class="mute-note" id="mute-note" hidden>Som mudo. Ligue o som em Ajustes para ouvir.</p>
         </div>
         <div class="answer" id="answer" hidden>
           <img id="answer-poster" alt="">
@@ -230,10 +247,10 @@
     <button id="b-endleave" class="back">Sair para o menu</button>
   </section>
 
-  <footer class="tmdb">Frames e dados: TMDB. Este jogo usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.</footer>
+  <footer class="tmdb">Frames e dados: TMDB. Este jogo usa a API do TMDB, mas não é endossado nem certificado pelo TMDB. Prévias de músicas: Apple (iTunes Search API).</footer>
 </main>
 <script src="/socket.io/socket.io.js"></script>
-<script src="sfx.js?v=5"></script>
-<script src="app.js?v=5"></script>
+<script src="sfx.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
