@@ -2,33 +2,35 @@
 const { check } = require('./matcher');
 
 // ataques vão num adversário; truques são para você mesmo
+const VISUAL = ['film', 'game', 'char', 'vf'], TEXT = ['film', 'game', 'char', 'music'];
 const POWERS = {
   // ataques visuais (só no modo filme)
-  borrao:  { type: 'atk', dur: 12000, mode: 'film', name: 'Borrão' },
-  virada:  { type: 'atk', dur: 12000, mode: 'film', name: 'Tela virada' },
-  tinta:   { type: 'atk', dur: 12000, mode: 'film', name: 'Tinta na lente' },
-  apagao:  { type: 'atk', dur: 10000, mode: 'film', name: 'Apagão' },
+  borrao:  { type: 'atk', dur: 12000, modes: VISUAL, name: 'Borrão' },
+  virada:  { type: 'atk', dur: 12000, modes: VISUAL, name: 'Tela virada' },
+  tinta:   { type: 'atk', dur: 12000, modes: VISUAL, name: 'Tinta na lente' },
+  apagao:  { type: 'atk', dur: 10000, modes: VISUAL, name: 'Apagão' },
   // ataques de áudio (só no modo música)
-  mudo:    { type: 'atk', dur: 10000, mode: 'music', name: 'Fone mudo' },
-  acelera: { type: 'atk', dur: 12000, mode: 'music', name: 'Esquilo' },
+  mudo:    { type: 'atk', dur: 10000, modes: ['music'], name: 'Fone mudo' },
+  acelera: { type: 'atk', dur: 12000, modes: ['music'], name: 'Esquilo' },
   // ataques que valem em qualquer modo
   congela: { type: 'atk', dur: 7000, name: 'Congelar' },
-  teclado: { type: 'atk', dur: 12000, name: 'Teclado doido' },
+  teclado: { type: 'atk', dur: 12000, modes: TEXT, name: 'Teclado doido' },
   pedagio: { type: 'atk', name: 'Pedágio' },
   // truques para si
-  espiar:  { type: 'buf', name: 'Espiada' },
-  dica:    { type: 'buf', name: 'Lupa' },
+  espiar:  { type: 'buf', modes: TEXT, name: 'Espiada' },
+  dica:    { type: 'buf', modes: TEXT, name: 'Lupa' },
   escudo:  { type: 'buf', name: 'Espelho' },
   dobro:   { type: 'buf', name: 'Dobro' },
-  radar:   { type: 'buf', name: 'Radar' },
+  radar:   { type: 'buf', modes: TEXT, name: 'Radar' },
 };
+const allowed = (k, mode) => !POWERS[k].modes || POWERS[k].modes.includes(mode);
 const HAND_MAX = 3;
 const COOLDOWN = 3500;
 
 let deckI = 0;
 function draw(mode, hand) {
   if (process.env.FG_DECK) { const d = process.env.FG_DECK.split(','); return d[deckI++ % d.length]; } // só para testes
-  const pool = Object.keys(POWERS).filter((k) => !POWERS[k].mode || POWERS[k].mode === mode);
+  const pool = Object.keys(POWERS).filter((k) => allowed(k, mode));
   const atk = pool.filter((k) => POWERS[k].type === 'atk'), buf = pool.filter((k) => POWERS[k].type === 'buf');
   for (let i = 0; i < 10; i++) {
     const list = Math.random() < 0.55 ? atk : buf;
@@ -46,6 +48,8 @@ const WRONG_FILM = ['Titanic', 'Matrix', 'Friends', 'Avatar', 'Shrek', 'Frozen',
   'Jurassic Park', 'Star Wars', 'De Volta para o Futuro', 'Toy Story', 'The Office', 'Game of Thrones', 'Demon Slayer', 'Scooby-Doo'];
 const WRONG_MUSIC = ['Anitta', 'Coldplay', 'Beyoncé', 'Marília Mendonça', 'Linkin Park', 'Taylor Swift', 'Drake', 'Daft Punk', 'Madonna', 'Ivete Sangalo',
   'Despacito', 'Thriller', 'Imagine', 'Evidências', 'Hey Jude'];
+const WRONG_GAME = ['Minecraft', 'Fortnite', 'Roblox', 'GTA', 'Free Fire', 'League of Legends', 'Valorant', 'FIFA', 'Zelda', 'Mario Kart', 'Call of Duty', 'Sonic', 'Pac-Man', 'Clash Royale'];
+const WRONG_CHAR = ['Harry Potter', 'Batman', 'Homem-Aranha', 'Goku', 'Naruto', 'Hermione', 'Jack Sparrow', 'Coringa', 'Elsa', 'Shrek', 'Luffy', 'Sherlock', 'Darth Vader', 'Wandinha'];
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
@@ -103,6 +107,22 @@ class Bots {
     if (r.settings.arcade) for (const b of this.list) r.later(rnd(2500, 11000), () => this.usePower(b));
   }
 
+  // Verdadeiro ou Falso: cada bot responde sozinho
+  onVF() {
+    const r = this.room, s = this.skill(), left = r.endsAt - Date.now();
+    for (const b of this.list) {
+      const right = Math.random() < Math.min(0.92, s + 0.15);
+      const go = () => {
+        if (r.phase !== 'guessing' || b.vf) return;
+        const fr = (b.fx.congela || 0) - Date.now();
+        if (fr > 0) return r.later(fr + 300, go);
+        r.answerVF(b.id, right ? r.title.truth : !r.title.truth);
+      };
+      r.later(Math.min(left - 800, rnd(2000, left * (1.2 - s))), go);
+    }
+    if (r.settings.arcade) for (const b of this.list) r.later(rnd(1500, 6000), () => this.usePower(b));
+  }
+
   onExtraFrame() { for (const b of this.list) if (b.bot && !b.guessed && !b.skipped && !b.bot.knows) this.plan(b); }
 
   plan(b) {
@@ -139,7 +159,7 @@ class Bots {
   }
   guessWrong(b) {
     const r = this.room;
-    const pool = r.title.isMusic ? WRONG_MUSIC : WRONG_FILM;
+    const pool = r.title.isMusic ? WRONG_MUSIC : r.title.isGame ? WRONG_GAME : r.title.isChar ? WRONG_CHAR : WRONG_FILM;
     for (let i = 0; i < 6; i++) {
       const g = pick(pool);
       if (check(g, r.key).result === 'wrong' && (!r.artistKey || check(g, r.artistKey).result === 'wrong')) { r.guess(b.id, Math.random() < 0.5 ? g.toLowerCase() : g); return; }
@@ -148,6 +168,10 @@ class Bots {
   // só sobraram bots: resolvem rápido para não travar a rodada
   hurry() {
     const r = this.room;
+    if (r.title && r.title.isVF) {
+      for (const b of this.list) if (!b.vf) r.later(rnd(700, 2000), () => { if (r.phase === 'guessing' && !b.vf) r.answerVF(b.id, Math.random() < this.skill() + 0.15 ? r.title.truth : !r.title.truth); });
+      return;
+    }
     for (const b of this.list) {
       if (b.guessed || b.skipped || !b.bot) continue;
       const gen = ++b.bot.gen;
@@ -180,4 +204,4 @@ class Bots {
   }
 }
 
-module.exports = { POWERS, HAND_MAX, COOLDOWN, draw, Bots };
+module.exports = { POWERS, HAND_MAX, COOLDOWN, draw, allowed, Bots };

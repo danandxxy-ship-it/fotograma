@@ -5,14 +5,18 @@ const crypto = require('crypto');
 const express = require('express');
 const { Server } = require('socket.io');
 const { TMDB, Demo, demoSvg } = require('./catalog');
-const { getRoom, createRoom, setGlobalCatalog, setGlobalMusic, stats } = require('./game');
+const { getRoom, createRoom, setGlobalCatalog, setGlobalMusic, setGlobalExtras, stats } = require('./game');
 const { DemoMusic, demoWavPath } = require('./music');
 
 const PORT = process.env.PORT || 3000;
 const KEY = process.env.TMDB_TOKEN || process.env.TMDB_API_KEY || '';
 const MOCK = process.env.MOCK === '1';
 
-if (MOCK) { setGlobalCatalog(new Demo()); setGlobalMusic(new DemoMusic()); }
+if (MOCK) {
+  setGlobalCatalog(new Demo()); setGlobalMusic(new DemoMusic());
+  const { DemoGames, DemoChars, DemoTF } = require('./extras');
+  setGlobalExtras({ games: new DemoGames(), chars: new DemoChars(), tf: new DemoTF() });
+}
 else if (KEY) setGlobalCatalog(new TMDB(KEY));
 
 const app = express();
@@ -64,6 +68,15 @@ io.on('connection', (socket) => {
     if (r) socket.emit('verdict', { result: r.result, exact: !!r.exact, pts: r.pts || 0, artistOnly: !!r.artistOnly, place: r.place || 0, placeBonus: r.placeBonus || 0, exactBonus: r.exactBonus || 0, left: r.left || 0, heat: r.heat || null, double: !!r.double, toll: r.toll || 0, card: !!r.card });
   });
   socket.on('skip', () => room && room.skip(pid));
+  socket.on('vf', (v) => { if (!room) return; const r = room.answerVF(pid, v === true); if (r) socket.emit('verdict', { result: r.result, left: r.left || 0 }); });
+  // reações: emojis subindo na tela de todo mundo
+  const REACT = ['😂', '🔥', '😱', '👏', '🤯', '💀', '😡', '❤️'];
+  let lastReact = 0;
+  socket.on('react', (e) => {
+    if (!room || !REACT.includes(e) || Date.now() - lastReact < 450) return;
+    lastReact = Date.now();
+    room.react(pid, e);
+  });
   socket.on('power', (m = {}) => { if (room) { const res = room.usePower(pid, m.card, m.target); if (res !== 'ok') socket.emit('powerfail', res); } });
   socket.on('addbot', host(() => { if (room.phase === 'lobby' || room.phase === 'end') room.bots.add(); }));
   socket.on('kickbot', host((id) => room.bots.remove(id)));

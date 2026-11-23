@@ -71,13 +71,16 @@
     } catch {}
   };
   const sendSettings = (patch) => socket.emit('settings', { ...S.settings, ...patch });
-  $('#opt-cats').onclick = (e) => {
+  const SPECIAL = ['musicas', 'games', 'personagens', 'vf'];
+  const pickCat = (e) => {
     const b = e.target.closest('button'); if (!b || !isHost()) return;
-    let set = new Set(S.settings.cats);
-    if (b.dataset.v === 'musicas') set = new Set(set.has('musicas') ? ['filmes', 'series', 'animes', 'desenhos'] : ['musicas']);
-    else { set.delete('musicas'); set.has(b.dataset.v) ? set.delete(b.dataset.v) : set.add(b.dataset.v); }
+    const v = b.dataset.v; let set = new Set(S.settings.cats);
+    if (SPECIAL.includes(v)) set = new Set(set.has(v) ? ['filmes', 'series', 'animes', 'desenhos'] : [v]); // modo especial: sozinho
+    else { SPECIAL.forEach((x) => set.delete(x)); set.has(v) ? set.delete(v) : set.add(v); }
     if (set.size) sendSettings({ cats: [...set] });
   };
+  $('#opt-cats').onclick = pickCat; $('#opt-special').onclick = pickCat;
+  $('#opt-char').onclick = (e) => { const b = e.target.closest('button'); if (b && isHost()) sendSettings({ charSrc: b.dataset.v }); };
   $('#opt-arcade').onclick = (e) => { const b = e.target.closest('button'); if (b && isHost()) sendSettings({ arcade: b.dataset.v === '1' }); };
   $('#b-addbot').onclick = () => { if (isHost()) socket.emit('addbot'); };
   $('#lobby-players').onclick = (e) => { const b = e.target.closest('[data-kick]'); if (b && isHost()) socket.emit('kickbot', b.dataset.kick); };
@@ -153,6 +156,13 @@
   socket.on('verdict', (v) => {
     const r = v.result;
     const el = $('#verdict');
+    if (r === 'actor') {
+      el.textContent = 'Esse é o ator!'; el.className = 'verdict show close';
+      $('#bonus').textContent = 'Aqui vale o nome do personagem'; $('#bonus').hidden = false;
+      clearTimeout(vTimer); vTimer = setTimeout(() => { el.className = 'verdict'; $('#bonus').hidden = true; }, 2000);
+      SFX.play('close'); buzz(25); return;
+    }
+    if (r === 'answered') { SFX.play('pencil'); buzz(15); return; }
     if (r === 'frozen') {
       el.textContent = 'Congelado!'; el.className = 'verdict show close';
       $('#bonus').textContent = `Dá pra chutar em ${Math.ceil(v.left / 1000)} s`; $('#bonus').hidden = false;
@@ -309,6 +319,35 @@
     else if (Math.random() < 0.25) el.value = v.slice(0, -1) + 'aeiouxkzq'[Math.floor(Math.random() * 9)];
   });
 
+  // ---------- Verdadeiro ou Falso ----------
+  const answerVF = (v) => { if (S && S.vf && S.phase === 'guessing' && S.vf.mine === null && !hasFx('congela')) socket.emit('vf', v); else if (hasFx('congela')) SFX.play('freeze'); };
+  $('#b-true').onclick = () => answerVF(true);
+  $('#b-false').onclick = () => answerVF(false);
+  window.addEventListener('keydown', (e) => {
+    if (!S || !S.vf || $('#v-game').hidden || e.target.matches('input')) return;
+    if (e.key === 'v' || e.key === 'V') answerVF(true);
+    if (e.key === 'f' || e.key === 'F') answerVF(false);
+  });
+
+  // ---------- reações: emojis subindo na tela de todo mundo ----------
+  let lastReact = 0;
+  $('#reacts').onclick = (e) => {
+    const b = e.target.closest('[data-e]'); if (!b || Date.now() - lastReact < 450) return;
+    lastReact = Date.now(); socket.emit('react', b.dataset.e); buzz(8);
+  };
+  socket.on('react', (r) => {
+    if ($('#v-game').hidden) return;
+    const layer = $('#react-layer');
+    if (layer.childElementCount > 24) layer.firstElementChild.remove();
+    const el = document.createElement('div');
+    el.className = 'react-pop';
+    el.style.left = (8 + Math.random() * 78) + '%';
+    el.style.animationDuration = (2.4 + Math.random() * 0.8) + 's';
+    el.innerHTML = `<b>${esc(r.e)}</b><span>${r.from === S?.me ? 'você' : esc(r.name)}</span>`;
+    layer.appendChild(el);
+    el.addEventListener('animationend', (ev) => { if (ev.target === el) el.remove(); });
+  });
+
   const isHost = () => S && S.hostId === S.me;
   const me = () => S.players.find((p) => p.id === S.me) || { score: 0 };
   const nameOf = (id) => (S.players.find((p) => p.id === id) || {}).name || '—';
@@ -454,6 +493,7 @@
       if (ph === 'picking') SFX.play('reel');
       if (ph === 'reveal') SFX.play('reveal');
       if (ph === 'end') SFX.play('finale');
+      if (ph === 'reveal' && st.mode === 'vf' && st.vf && st.vf.mine !== null && st.answer) setTimeout(() => SFX.play(st.vf.mine === st.answer.truth ? 'correct' : 'wrong'), 250);
       if (ph === 'reveal' && st.mode === 'music') setTimeout(() => { if (S && S.phase === 'reveal') playSeg(0, 30); }, 1100);
       if (ph !== 'guessing' && ph !== 'reveal') stopAudio();
     }
@@ -477,7 +517,7 @@
   }) || ($('#p-sound .snd-state').textContent = SFX.on ? 'ligado' : 'mudo');
   document.querySelectorAll('.snd').forEach((b) => (b.onclick = () => { SFX.toggle(); paintSound(); }));
   paintSound();
-  ['#opt-cats', '#opt-rounds', '#opt-time', '#opt-diff', '#opt-arcade', '#opt-bot', '#b-addbot'].forEach((id) => $(id).addEventListener('click', () => SFX.play('click')));
+  ['#opt-cats', '#opt-special', '#opt-char', '#opt-rounds', '#opt-time', '#opt-diff', '#opt-arcade', '#opt-bot', '#b-addbot'].forEach((id) => $(id).addEventListener('click', () => SFX.play('click')));
 
   function render(prev) {
     const ph = S.phase;
@@ -500,7 +540,9 @@
     $('#host-box').hidden = !host;
     $('#guest-wait').hidden = host;
     $('#key-box').hidden = !S.needKey;
-    for (const b of $('#opt-cats').children) b.setAttribute('aria-pressed', S.settings.cats.includes(b.dataset.v));
+    for (const b of [...$('#opt-cats').children, ...$('#opt-special').children]) b.setAttribute('aria-pressed', S.settings.cats.includes(b.dataset.v));
+    $('#opt-char-box').hidden = !S.settings.cats.includes('personagens');
+    for (const b of $('#opt-char').children) b.setAttribute('aria-pressed', S.settings.charSrc === b.dataset.v);
     for (const [id, key] of [['#opt-rounds', 'rounds'], ['#opt-time', 'time'], ['#opt-diff', 'diff']]) {
       for (const b of $(id).children) b.setAttribute('aria-pressed', String(S.settings[key]) === b.dataset.v);
     }
@@ -533,11 +575,14 @@
     $('#edge-a').textContent = `FG 400 ▸ ROLO ${S.round}`;
     $('#my-score').textContent = mine.score;
 
-    const music = S.mode === 'music';
+    const music = S.mode === 'music', isVF = S.mode === 'vf';
+    const CLUE = { film: ['um', 'frame'], game: ['uma', 'captura'], char: ['uma', 'foto'], music: ['um', 'trecho'] }[S.mode] || ['um', 'frame'];
+    const ASK = { film: 'Que obra é essa?', game: 'Que jogo é esse?', char: 'Quem é esse personagem?', music: 'Que música é essa?', vf: 'Verdadeiro ou falso?' }[S.mode] || 'Que obra é essa?';
+    $('#v-game').classList.toggle('vf', isVF); $('#f-guess').classList.toggle('vf', isVF); $('#vf-btns').hidden = !isVF;
     const labels = {
       loading: 'Trocando o rolo…',
-      picking: amPicker ? (music ? 'Escolha um trecho' : 'Escolha um frame') : `${nameOf(S.pickerId)} escolhe o ${music ? 'trecho' : 'frame'}`,
-      guessing: mine.guessed ? 'Você acertou! Aguarde' : music ? 'Que música é essa?' : 'Que obra é essa?',
+      picking: amPicker ? `Escolha ${CLUE[0]} ${CLUE[1]}` : `${nameOf(S.pickerId)} escolhe ${CLUE[0] === 'um' ? 'o' : 'a'} ${CLUE[1]}`,
+      guessing: isVF ? (S.vf && S.vf.mine !== null ? 'Respondido! Aguarde' : ASK) : mine.guessed ? 'Você acertou! Aguarde' : ASK,
       reveal: 'Revelado',
     };
     $('#phase-label').textContent = labels[ph] || '';
@@ -547,10 +592,30 @@
     const latest = S.revealed[S.revealed.length - 1];
     const revealKey = S.round + ':' + S.revealed.map((r) => r.i).join(',') + '|' + (S.arcade ? S.arcade.peek.map((r) => r.i).join(',') : '');
     if (prev && (prev.round !== S.round || prev.revealed.length !== S.revealed.length)) viewIdx = null; // frame novo: volta pro último
+    screen.classList.toggle('portrait', !!S.portrait);
+    screen.classList.toggle('vf', isVF);
+    const showVF = isVF && !!S.vf;
+    $('#vf-card').hidden = !showVF;
+    if (showVF) {
+      $('#vf-text').textContent = S.vf.text;
+      $('#vf-card').style.backgroundImage = S.vf.image ? `url("${S.vf.image}")` : '';
+      const votes = S.vf.votes;
+      $('#vf-votes').textContent = votes ? `${votes.filter((x) => x.v).length} disseram verdadeiro, ${votes.filter((x) => !x.v).length} falso` : '';
+      const mineV = S.vf.mine, truth = S.answer ? S.answer.truth : null;
+      for (const [b, v] of [[$('#b-true'), true], [$('#b-false'), false]]) {
+        b.disabled = ph !== 'guessing' || mineV !== null;
+        b.classList.toggle('chosen', mineV === v);
+        b.classList.toggle('right', truth === v);
+      }
+    }
     const showVinyl = music && (ph === 'guessing' || ph === 'reveal');
     $('#vinyl').hidden = !showVinyl;
     $('#mute-note').hidden = !(showVinyl && !(SFX.on && SFX.volume > 0));
-    if (music) {
+    if (isVF) {
+      img.hidden = true; img.dataset.src = '';
+      $('#screen-empty').hidden = showVF;
+      if (!showVF) $('#screen-msg').textContent = 'Preparando a próxima cartela…';
+    } else if (music) {
       img.hidden = true; img.dataset.src = '';
       $('#screen-empty').hidden = showVinyl;
       if (!showVinyl) $('#screen-msg').textContent = ph === 'loading' ? 'Trocando a fita…' : amPicker
@@ -560,6 +625,7 @@
       const pool = S.revealed.concat(S.arcade ? S.arcade.peek : []);
       const chosen = viewIdx !== null && pool.find((f) => f.i === viewIdx);
       const shown = chosen || latest;
+      img.classList.toggle('wide', !shown.portrait);
       if (img.dataset.src !== shown.full) {
         img.dataset.src = shown.full; img.src = shown.full; img.hidden = false;
         screen.classList.remove('flick'); void screen.offsetWidth; screen.classList.add('flick');
@@ -569,8 +635,8 @@
       img.hidden = true; img.dataset.src = '';
       $('#screen-empty').hidden = false;
       $('#screen-msg').textContent = ph === 'loading' ? 'Trocando o rolo…' : amPicker
-        ? 'Você é o projecionista. Toque num frame da película para projetar.'
-        : `${nameOf(S.pickerId)} está escolhendo o frame…`;
+        ? `Você é o projecionista. Toque n${CLUE[0] === 'um' ? 'um' : 'uma'} ${CLUE[1]} da película para projetar.`
+        : `${nameOf(S.pickerId)} está escolhendo ${CLUE[0] === 'um' ? 'o' : 'a'} ${CLUE[1]}…`;
     }
     // resposta
     if (S.answer) {
@@ -579,6 +645,7 @@
       $('#answer-title').textContent = S.answer.title;
       $('#answer-orig').textContent = S.answer.artist ? S.answer.artist : (S.answer.original && S.answer.original !== S.answer.title ? S.answer.original : '');
       $('#answer').classList.toggle('sq', music);
+      $('#answer').classList.toggle('gm', S.mode === 'game');
       const pImg = $('#answer-poster');
       if (S.answer.poster) { pImg.src = S.answer.poster; pImg.hidden = false; } else pImg.hidden = true;
     } else $('#answer').hidden = true;
@@ -610,6 +677,7 @@
     $('.sheet-strip .edge-b').textContent = ph === 'guessing' && amPicker && S.revealed.length < 3 ? (music ? '◂ toque para soltar mais um trecho' : '◂ toque para dar mais uma pista')
       : ph === 'picking' && amPicker ? (music ? '◂ escolha um trecho' : '◂ escolha um frame')
       : music && ph === 'guessing' ? '◂ toque num trecho para ouvir de novo' : '◂ ◂ ◂';
+    if (ph === 'guessing' && amPicker && S.revealed.length < 3 && !music) $('.sheet-strip .edge-b').textContent = `◂ toque para dar mais uma pista`;
 
     // conversa
     const feed = $('#feed');
@@ -645,7 +713,7 @@
     inp.disabled = !canGuess; $('#b-guess').disabled = !canGuess; micBtn.disabled = !canGuess;
     if (!canGuess && listening) stopMic();
     if (ph !== 'guessing' || !mine.guessed) $('#bonus').hidden = true;
-    if (!listening) inp.placeholder = ph === 'guessing' ? (mine.guessed ? 'Você já acertou' : mine.skipped ? 'Ainda dá pra chutar' : music ? 'Música ou artista' : 'Seu palpite') : ph === 'picking' ? (music ? 'Esperando o trecho…' : 'Esperando o frame…') : 'Próximo rolo já vem';
+    if (!listening) inp.placeholder = ph === 'guessing' ? (mine.guessed ? 'Você já acertou' : mine.skipped ? 'Ainda dá pra chutar' : music ? 'Música ou artista' : S.mode === 'char' ? 'Personagem' : S.mode === 'game' ? 'Jogo' : 'Seu palpite') : ph === 'picking' ? `Esperando ${CLUE[0] === 'um' ? 'o' : 'a'} ${CLUE[1]}…` : 'Próximo rolo já vem';
     if (canGuess && (lastPhase !== 'guessing') && !matchMedia('(pointer:coarse)').matches) inp.focus();
     lastPhase = ph;
   }
@@ -701,7 +769,7 @@
       if (!gp) continue;
       const prev = pads[gp.index] || {};
       const now = {
-        a: gp.buttons[0]?.pressed, b: gp.buttons[1]?.pressed, x: gp.buttons[2]?.pressed, y: gp.buttons[3]?.pressed, start: gp.buttons[9]?.pressed, mic: gp.buttons[4]?.pressed || gp.buttons[5]?.pressed, rt: gp.buttons[7]?.pressed,
+        a: gp.buttons[0]?.pressed, b: gp.buttons[1]?.pressed, x: gp.buttons[2]?.pressed, y: gp.buttons[3]?.pressed, start: gp.buttons[9]?.pressed, mic: gp.buttons[4]?.pressed || gp.buttons[5]?.pressed, rt: gp.buttons[7]?.pressed, lb: gp.buttons[4]?.pressed, rb: gp.buttons[5]?.pressed,
         up: gp.buttons[12]?.pressed || gp.axes[1] < -0.6, down: gp.buttons[13]?.pressed || gp.axes[1] > 0.6,
         left: gp.buttons[14]?.pressed || gp.axes[0] < -0.6, right: gp.buttons[15]?.pressed || gp.axes[0] > 0.6,
       };
@@ -709,7 +777,8 @@
       if (hit('up')) move(0, -1); if (hit('down')) move(0, 1);
       if (hit('left')) move(-1, 0); if (hit('right')) move(1, 0);
       if (hit('a')) { const el = document.activeElement; if (el && el.tagName === 'BUTTON') el.click(); else if (el && el.tagName === 'INPUT') el.form?.requestSubmit(); }
-      if (hit('mic') && !$('#v-game').hidden && !micBtn.hidden) micBtn.click();
+      if (S && S.mode === 'vf' && !$('#v-game').hidden) { if (hit('lb')) answerVF(true); if (hit('rb')) answerVF(false); }
+      else if (hit('mic') && !$('#v-game').hidden && !micBtn.hidden) micBtn.click();
       if (hit('x') && !$('#v-game').hidden && !$('#b-skip').disabled) $('#b-skip').click();
       if (hit('y') && (!$('#v-game').hidden || !$('#v-lobby').hidden)) people($('#people').hidden);
       if (hit('rt') && !$('#hand').hidden) $('#hand-cards .pcard:not(:disabled)')?.focus();

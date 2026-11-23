@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#dfe7ea">
 <title>Fotograma — adivinhe pelo frame</title>
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 <main id="app">
@@ -54,6 +54,10 @@
       <li><b>O projecionista escolhe.</b> A cada rodada uma pessoa vê a película com 8 frames cobertos e toca num deles.</li>
       <li><b>Todo mundo chuta.</b> Escreva o nome do filme, série, anime ou desenho. Erro de digitação, falta de acento e nome em inglês ou no idioma original valem.</li>
       <li><b>Dicas aparecem.</b> Com o tempo surgem os tracinhos do título, depois algumas letras e mais frames da mesma obra.</li>
+      <li><b>Games.</b> Aparece uma captura de tela de um game (da Steam). Chute o nome; apelidos como GTA 5 ou CS2 também valem.</li>
+      <li><b>Personagens.</b> Vale o nome do personagem, não do ator. Em filmes e séries a foto é do ator; em animes é o próprio personagem. O nome completo ganha bônus.</li>
+      <li><b>Verdadeiro ou falso.</b> Uma afirmação na tela e dois botões. Ninguém vê a resposta dos outros até o fim; acertar rápido vale mais.</li>
+      <li><b>Reações.</b> Toque num emoji embaixo da tela e ele sobe na tela de todo mundo.</li>
       <li><b>Modo Arcade.</b> Cada jogador recebe lâminas de poder. Ataques vão em alguém que ainda não acertou (Borrão, Tela virada, Tinta, Apagão, Congelar, Teclado doido, Pedágio; no modo música, Fone mudo e Esquilo). Truques são para você (Espiada, Lupa, Espelho, Dobro, Radar). Ganha uma lâmina por rodada, até 3, e uma extra se acertar primeiro.</li>
       <li><b>Bots.</b> No lobby, o anfitrião pode pôr bots para treinar ou completar a sala. Eles escolhem frames, chutam, erram, passam a vez e usam poderes.</li>
       <li><b>Falar em vez de digitar.</b> Toque no microfone ao lado do Chutar e fale o nome. O palpite vai sozinho quando você para de falar. Funciona no Chrome do celular; no controle, use LB ou RB.</li>
@@ -121,8 +125,19 @@
         <div class="mounts" id="opt-cats">
           <button data-v="filmes">Filmes</button><button data-v="series">Séries</button>
           <button data-v="animes">Animes</button><button data-v="desenhos">Desenhos</button>
-          <button data-v="musicas" class="wide">Modo música: só áudio</button>
         </div>
+        <p class="mounts-sub">Ou um modo especial</p>
+        <div class="mounts special" id="opt-special">
+          <button data-v="musicas">Músicas</button><button data-v="games">Games</button>
+          <button data-v="personagens">Personagens</button><button data-v="vf">Verdadeiro ou falso</button>
+        </div>
+      </fieldset>
+      <fieldset class="opt" id="opt-char-box" hidden>
+        <legend>Personagens de onde</legend>
+        <div class="chips" id="opt-char">
+          <button data-v="mix">Misturado</button><button data-v="live">Filmes e séries</button><button data-v="anime">Animes</button>
+        </div>
+        <p class="opt-note">Em filmes e séries aparece a foto do ator, mas vale o nome do personagem. Filmes e séries precisam do token do TMDB.</p>
       </fieldset>
       <fieldset class="opt" id="opt-music-box" hidden>
         <legend>Estilo das músicas</legend>
@@ -199,6 +214,10 @@
           <button type="button" class="replay" id="b-replay">Tocar de novo</button>
           <p class="mute-note" id="mute-note" hidden>Som mudo. Ligue o som em Ajustes para ouvir.</p>
         </div>
+        <div class="vf-card" id="vf-card" hidden>
+          <div class="vf-frame"><p id="vf-text"></p></div>
+          <p class="vf-votes" id="vf-votes"></p>
+        </div>
         <div class="fx-ink" id="fx-ink" hidden aria-hidden="true">
           <svg viewBox="0 0 100 60" preserveAspectRatio="none"><path d="M18 8c9-3 14 6 11 12 6-1 9 7 3 10 4 6-5 12-11 7-3 7-14 4-12-3-7 0-9-10-2-12-4-7 5-13 11-14z"/><path d="M62 20c7-4 15 2 12 9 7 1 6 11-1 11 1 8-11 9-13 3-7 3-12-6-6-10-5-5 1-14 8-13z"/><path d="M40 38c5-2 9 3 7 7 5 1 3 8-2 7-1 5-9 5-9 0-6 0-6-8 0-9-1-3 1-5 4-5z"/><path d="M84 4c4-1 7 3 5 6 4 1 2 6-2 6 0 4-7 4-7 0-4-1-3-7 1-7 0-3 1-5 3-5z"/><circle cx="8" cy="46" r="4"/><circle cx="52" cy="10" r="3"/><circle cx="92" cy="50" r="5"/></svg>
         </div>
@@ -214,6 +233,12 @@
         </div>
       </div>
       <p class="mask" id="mask" aria-label="Dica do título"></p>
+      <div class="reacts" id="reacts" role="group" aria-label="Reagir">
+        <button type="button" data-e="😂" aria-label="Rindo">😂</button><button type="button" data-e="🔥" aria-label="Fogo">🔥</button>
+        <button type="button" data-e="😱" aria-label="Chocado">😱</button><button type="button" data-e="👏" aria-label="Palmas">👏</button>
+        <button type="button" data-e="🤯" aria-label="Mente explodindo">🤯</button><button type="button" data-e="💀" aria-label="Morri">💀</button>
+        <button type="button" data-e="😡" aria-label="Bravo">😡</button><button type="button" data-e="❤️" aria-label="Amei">❤️</button>
+      </div>
     </div>
 
     <div class="strip sheet-strip">
@@ -243,6 +268,10 @@
       <span class="skipinfo" id="skipinfo" aria-live="polite"></span>
       <span class="verdict" id="verdict" aria-live="assertive"></span>
       <span class="bonus" id="bonus" hidden></span>
+      <div class="vf-btns" id="vf-btns" hidden>
+        <button type="button" id="b-true" class="vf-t">Verdadeiro</button>
+        <button type="button" id="b-false" class="vf-f">Falso</button>
+      </div>
     </form>
   </section>
 
@@ -257,6 +286,8 @@
       <button type="button" class="menu-item danger" id="p-leave"><b>Sair da sala</b><small>Você perde os pontos desta partida</small></button>
     </div>
   </div>
+
+  <div class="react-layer" id="react-layer" aria-hidden="true"></div>
 
   <!-- ALVO DO PODER -->
   <div class="pause" id="target" hidden role="dialog" aria-modal="true" aria-labelledby="target-t">
@@ -288,10 +319,10 @@
     <button id="b-endleave" class="back">Sair para o menu</button>
   </section>
 
-  <footer class="tmdb">Frames e dados: TMDB. Este jogo usa a API do TMDB, mas não é endossado nem certificado pelo TMDB. Prévias de músicas: Apple (iTunes Search API).</footer>
+  <footer class="tmdb">Frames e dados: TMDB. Este jogo usa a API do TMDB, mas não é endossado nem certificado pelo TMDB. Prévias de músicas: Apple (iTunes Search API). Games: Steam. Personagens de anime: MyAnimeList (Jikan).</footer>
 </main>
 <script src="/socket.io/socket.io.js"></script>
-<script src="sfx.js?v=11"></script>
-<script src="app.js?v=11"></script>
+<script src="sfx.js?v=12"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>

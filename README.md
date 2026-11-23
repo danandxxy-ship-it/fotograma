@@ -66,3 +66,10 @@ Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.
 - 3,5 s de recarga entre lâminas. No controle: RT foca as lâminas, A usa, B cancela.
 - **Bots**: o anfitrião põe até 7 (Bobo, Esperto, Craque). Eles escolhem frames, soltam pistas, chutam com erros de digitação, erram, passam a vez e usam poderes (preferem atacar quem lidera). Quando só faltam bots, eles resolvem em poucos segundos.
 - Teste: `FG_DECK=borrao,congela,...` fixa a ordem das lâminas (só para testes).
+
+## Modos especiais (escolha um por partida)
+
+- **Games**: capturas de tela da Steam (`store.steampowered.com/api/appdetails`, sem chave). Lista curada de ~100 jogos por dificuldade, com apelidos (GTA 5, CS2, RDR2…). Jogos com conteúdo adulto são pulados.
+- **Personagens**: vale o nome do personagem. Filmes e séries vêm do TMDB (fotos do ator + cenas da obra; precisa do token); animes vêm do MyAnimeList via Jikan (imagem do próprio personagem, sem chave). Chutar o nome do ator mostra "Esse é o ator!" e não conta. Nome completo ganha o bônus de exato.
+- **Verdadeiro ou falso**: banco de ~70 afirmações conferidas + afirmações geradas do TMDB (ano, duração, temporadas, diretor) quando há token. Até 20 s por cartela, ninguém vê a resposta dos outros até o fim, acerto mais rápido vale mais. Teclado: V/F. Controle: LB/RB.
+- **Reações**: 8 emojis embaixo da tela; sobem na tela de todos com o nome de quem mandou. Bots também reagem.
