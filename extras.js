@@ -166,7 +166,7 @@ class Characters {
         return {
           id: 'c' + type + c.id + ':' + ch.id, isChar: true, title: names[0], original: `${ch.name} em ${work}`,
           year: (j.release_date || j.first_air_date || '').slice(0, 4), kind: 'Personagem', poster: IMG + 'w342' + ch.profile_path,
-          titles: names, actorTitles: [ch.name], work, face: IMG + 'w185' + ch.profile_path,
+          titles: names, actorTitles: [ch.name], work, workKind: type === 'movie' ? 'filme' : 'série', face: IMG + 'w185' + ch.profile_path,
           frames: profiles.map((p) => ({ full: IMG + 'h632' + p, thumb: IMG + 'w185' + p, portrait: true })).concat(backs),
         };
       }
@@ -196,7 +196,7 @@ class Characters {
       const workImgs = animes.slice(0, 2).map((a) => a.anime?.images?.jpg?.large_image_url || a.anime?.images?.jpg?.image_url).filter(Boolean);
       return {
         id: 'ca' + c.mal_id, isChar: true, title: name, original: work ? `de ${work}` : '', year: '', kind: 'Personagem de anime',
-        poster: main, titles: names, actorTitles: null, work, face: main,
+        poster: main, titles: names, actorTitles: null, work, workKind: 'anime', face: main,
         frames: imgs.map((u) => ({ full: u, thumb: u, portrait: true })).concat(workImgs.map((u) => ({ full: u, thumb: u, portrait: true, scene: true }))).slice(0, 8),
       };
     }
@@ -219,7 +219,7 @@ Characters.prototype.anilist = async function (diff, used) {
   return {
     id: 'cl' + c.id, isChar: true, title: name, original: work ? `de ${work}` : '', year: '', kind: 'Personagem de anime',
     poster: c.image.large, titles: [...new Set([name, ...charNames(name).slice(1), ...(c.name.alternative || []).filter((n) => n && n.length >= 3)])],
-    actorTitles: null, work, face: c.image.large,
+    actorTitles: null, work, workKind: media[0] && media[0].type !== 'ANIME' ? 'mangá' : 'anime', face: c.image.large,
     frames: [{ full: c.image.large, thumb: c.image.large, portrait: true }].concat(media.slice(0, 2).map((m) => ({ full: m.coverImage.large, thumb: m.coverImage.large, portrait: true, scene: true }))),
   };
 };
@@ -365,7 +365,7 @@ class DemoChars {
   async pick(_c, _s, _d, used) {
     const pool = DEMO_CHARS.map((c, i) => ({ c, i })).filter(({ i }) => !used.has('cd' + i));
     const { c, i } = pick(pool.length ? pool : DEMO_CHARS.map((c2, i2) => ({ c: c2, i: i2 })));
-    return { id: 'cd' + i, isChar: true, title: c[0], original: `${c[1]} em ${c[2]}`, year: '', kind: 'Personagem', poster: `/demo/poster/${i}.svg`, titles: charNames(c[0]), actorTitles: [c[1]], work: c[2], face: `/demo/frame/${30 + i}/0.svg`,
+    return { id: 'cd' + i, isChar: true, title: c[0], original: `${c[1]} em ${c[2]}`, year: '', kind: 'Personagem', poster: `/demo/poster/${i}.svg`, titles: charNames(c[0]), actorTitles: [c[1]], work: c[2], workKind: i === 1 || i === 3 ? 'série' : 'filme', face: `/demo/frame/${30 + i}/0.svg`,
       frames: Array.from({ length: 6 }, (_, n) => ({ full: `/demo/frame/${30 + i}/${n}.svg`, thumb: `/demo/frame/${30 + i}/${n}.svg`, portrait: n < 3, scene: n >= 3 })) };
   }
 }

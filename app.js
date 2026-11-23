@@ -579,6 +579,7 @@
     const CLUE = { film: ['um', 'frame'], game: ['uma', 'captura'], char: ['uma', 'foto'], music: ['um', 'trecho'] }[S.mode] || ['um', 'frame'];
     const ASK = { film: 'Que obra é essa?', game: 'Que jogo é esse?', char: 'Quem é esse personagem?', music: 'Que música é essa?', vf: 'Verdadeiro ou falso?' }[S.mode] || 'Que obra é essa?';
     $('#v-game').classList.toggle('vf', isVF); $('#f-guess').classList.toggle('vf', isVF); $('#vf-btns').hidden = !isVF;
+    const PREP2 = { filme: 'do filme', 'série': 'da série', anime: 'do anime', 'mangá': 'do mangá', desenho: 'do desenho' };
     const labels = {
       loading: 'Trocando o rolo…',
       picking: amPicker ? `Escolha ${CLUE[0]} ${CLUE[1]}` : `${nameOf(S.pickerId)} escolhe ${CLUE[0] === 'um' ? 'o' : 'a'} ${CLUE[1]}`,
@@ -609,6 +610,10 @@
       }
     }
     if (!S.face || !['guessing', 'reveal'].includes(ph)) $('#face-pin').hidden = true;
+    // personagens: a pergunta diz de onde ele é
+    const cw = S.charWork, PREP = { filme: 'do filme', 'série': 'da série', anime: 'do anime', 'mangá': 'do mangá', desenho: 'do desenho' };
+    $('#work-tag').hidden = !(cw && ph === 'guessing');
+    if (cw) $('#work-tag').innerHTML = `Personagem ${PREP[cw.kind] || 'de'} <b>${esc(cw.name)}</b>`;
     const showVinyl = music && (ph === 'guessing' || ph === 'reveal');
     $('#vinyl').hidden = !showVinyl;
     $('#mute-note').hidden = !(showVinyl && !(SFX.on && SFX.volume > 0));

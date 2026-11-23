@@ -474,6 +474,7 @@ class Room {
       vf: t && t.isVF && ['guessing', 'reveal'].includes(this.phase) ? { text: t.statement, image: t.image, mine: (this.players.get(forId) || {}).vf ? this.players.get(forId).vf.v : null,
         votes: this.phase === 'reveal' ? [...this.players.values()].filter((p) => p.vf).map((p) => ({ id: p.id, v: p.vf.v })) : null } : null,
       portrait: !!(t && t.isChar),
+      charWork: t && t.isChar && t.work && ['guessing', 'reveal'].includes(this.phase) ? { name: t.work, kind: t.workKind || '' } : null,
       face: t && t.isChar && ['guessing', 'reveal'].includes(this.phase) ? t.face || null : null,
       players: this.order.map((id) => this.players.get(id)).filter(Boolean).map((p) => ({
         id: p.id, name: p.name, score: p.score, connected: p.connected, guessed: p.guessed, skipped: p.skipped, roundPts: p.roundPts, joinedAt: p.joinedAt,

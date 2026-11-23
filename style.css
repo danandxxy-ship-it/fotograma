@@ -649,3 +649,10 @@ body:has(.facade:not([hidden])) .tmdb { color: #e8c9a8; opacity: .7; }
 .face-pin .tape-bit { position: absolute; left: 30%; top: -9px; width: 40%; height: 16px; background: #e6dcc0d9; transform: rotate(3deg); }
 .cell .scenetag { position: absolute; left: 3px; top: 3px; background: #000a; color: #f1ead9; font-size: 10px; font-weight: 800; padding: 1px 4px; }
 @media (prefers-reduced-motion: reduce) { .face-pin .ring { stroke-dashoffset: 0; } }
+
+/* personagens: de qual obra ele é (legenda de cinema no pé da tela) */
+.work-tag { position: absolute; left: 50%; bottom: 7%; z-index: 2; transform: translateX(-50%); width: max-content; max-width: 88%; margin: 0;
+  padding: 4px 12px; background: #000c; color: #fff8dc; text-align: center; font-weight: 800; font-size: clamp(14px, 4.2vw, 21px); line-height: 1.2;
+  font-variation-settings: 'wdth' 88; text-wrap: balance; }
+.work-tag b { color: var(--edge); font-weight: 900; }
+.hud-mid strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; }
