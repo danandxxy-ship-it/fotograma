@@ -269,10 +269,10 @@ input::placeholder { color: #8b979c; }
   #app:has(#v-game:not([hidden])) { max-width: 1180px; }
   #v-game:not([hidden]) {
     display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); column-gap: 26px;
-    grid-template-areas: 'hud hud' 'proj feed' 'strip feed' 'score slate';
+    grid-template-areas: 'hud hud' 'proj feed' 'strip feed' 'hand feed' 'score slate';
   }
   .hud { grid-area: hud; } .projector { grid-area: proj; margin: 0 0 14px; }
-  .sheet-strip { grid-area: strip; } .feed { grid-area: feed; max-height: 62vh; align-self: start; margin: 0; font-size: 16px; }
+  .sheet-strip { grid-area: strip; } .hand { grid-area: hand; } .feed { grid-area: feed; max-height: 62vh; align-self: start; margin: 0; font-size: 16px; }
   .hud-mid strong { font-size: 22px; } .hud-mid span { font-size: 14px; }
   .scoreline { grid-area: score; } .slate { grid-area: slate; margin: 0; }
 }
@@ -517,3 +517,68 @@ body:has(.facade:not([hidden])) .tmdb { color: #e8c9a8; opacity: .7; }
 @keyframes micpulse { from { opacity: .9; transform: scale(.9); } to { opacity: 0; transform: scale(1.25); } }
 .slate input.listening { border-color: var(--pencil); color: #ffd9d4; font-style: italic; }
 @media (prefers-reduced-motion: reduce) { .btn-mic[aria-pressed='true']::after { animation: none; } }
+
+/* ---------- modo Arcade: lâminas de poder (moldura de slide 35 mm) ---------- */
+.opt-note { margin: 8px 0 0; font-size: 14px; color: #4b4640; max-width: 60ch; }
+.bots-row { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; }
+.bots-row .seg { flex: 1; min-width: 210px; }
+.tapes li.bot { background: #cfd8dc; }
+.tapes li .bottag { font-family: var(--marker); color: var(--base-dark); font-weight: 400; margin-left: 6px; }
+.tapes li button.kick { margin-left: 8px; border: 0; background: none; font: inherit; color: var(--pencil); text-decoration: underline; padding: 0; min-height: 0; }
+
+.hand { margin: 4px 0 14px; }
+.hand-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.hand-label { font: 400 19px var(--marker); color: var(--ink); transform: rotate(-1deg); display: inline-block; }
+.hand-state { font-size: 14px; font-weight: 700; color: var(--base-dark); text-align: right; }
+.hand-cards { display: flex; gap: 12px; min-height: 108px; }
+.hand-empty { align-self: center; color: #6a645d; font-size: 14px; }
+.hand-cards:has(.hand-empty) { min-height: 0; }
+.pcard {
+  position: relative; width: 31%; max-width: 128px; aspect-ratio: 1 / 1.02; padding: 0; border: 0; cursor: pointer;
+  background: #f7f5f0; border-radius: 6px; box-shadow: 0 2px 0 #b9b2a6, 0 6px 14px #0003;
+  display: grid; grid-template-rows: 1fr auto; text-align: center; color: var(--ink);
+}
+.pcard:nth-child(1) { transform: rotate(-2.5deg); } .pcard:nth-child(2) { transform: rotate(1.2deg); } .pcard:nth-child(3) { transform: rotate(-.6deg); }
+.pcard .win { margin: 11% 14% 0; border-radius: 3px; display: grid; place-items: center; position: relative; overflow: hidden; }
+.pcard.atk .win { background: radial-gradient(circle at 35% 30%, #ff7068, #b0151d 75%); }
+.pcard.buf .win { background: radial-gradient(circle at 35% 30%, #ffe48a, #d39a12 75%); }
+.pcard .win::after { content: ''; position: absolute; inset: 0; background: linear-gradient(130deg, #fff6 0 18%, transparent 30%); }
+.pcard svg { width: 54%; height: 54%; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.pcard.buf svg { stroke: #3d2a00; }
+.pcard b { display: block; padding: 5px 4px 7px; font: 400 15px/1.05 var(--marker); color: var(--ink); }
+.pcard.atk b { color: var(--pencil); }
+.pcard:disabled { cursor: default; filter: grayscale(.85); opacity: .55; }
+.pcard.new { animation: deal .45s ease-out; }
+@keyframes deal { from { transform: translateY(-30px) rotate(-12deg); opacity: 0; } }
+
+#target-list { display: grid; gap: 8px; margin: 10px 0; }
+#target-list button small { color: #6a645d; }
+
+/* efeitos que você sofre */
+.screen.fx-borrao img, .screen.fx-borrao .vinyl { filter: blur(16px) saturate(1.3); }
+.screen.fx-virada img { transform: rotate(180deg) scaleX(-1); }
+.screen img { transition: filter .4s, transform .5s; }
+.fx-ink { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.fx-ink svg { width: 100%; height: 100%; fill: #0b0a12; opacity: .94; }
+.fx-ink:not([hidden]) svg { animation: splat .35s ease-out; }
+@keyframes splat { from { transform: scale(.6); opacity: 0; } }
+.fx-dark { position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  background: radial-gradient(circle at var(--lx, 50%) var(--ly, 50%), transparent 0 13%, #000 19%); animation: torch 6s ease-in-out infinite alternate; }
+@property --lx { syntax: '<percentage>'; inherits: false; initial-value: 50%; }
+@property --ly { syntax: '<percentage>'; inherits: false; initial-value: 50%; }
+@keyframes torch { 0% { --lx: 15%; --ly: 30%; } 25% { --lx: 70%; --ly: 70%; } 50% { --lx: 85%; --ly: 25%; } 75% { --lx: 35%; --ly: 75%; } 100% { --lx: 55%; --ly: 40%; } }
+.ptoast { position: absolute; left: 50%; top: 12px; z-index: 5; transform: translateX(-50%) rotate(-1.5deg); width: max-content; max-width: 92%;
+  background: var(--tape); color: var(--ink); padding: 8px 14px; font-weight: 800; font-size: 16px; box-shadow: 0 4px 12px #0006;
+  clip-path: polygon(1% 4%, 99% 0, 100% 96%, 0 100%); }
+.ptoast.hit { background: var(--pencil); color: #fff; }
+.ptoast:not([hidden]) { animation: toast .3s ease-out; }
+@keyframes toast { from { transform: translateX(-50%) translateY(-20px) rotate(-6deg); opacity: 0; } }
+.slate.frozen .field input { background: repeating-linear-gradient(-30deg, #cfe9f5 0 6px, #e8f6fc 6px 14px); color: #164a63; border-color: #8fd0ec; }
+.slate.frozen .field input::placeholder { color: #2a6f8f; font-weight: 800; font-size: 15px; }
+.scoreline li .fxb { font: 400 13px var(--marker); color: var(--pencil); margin-left: 5px; }
+.scoreline li .fxb.sh { color: #2a6f8f; }
+.scoreline li.bot { background: #cfd8dc; }
+.cell.peek { outline: 3px dashed var(--edge); outline-offset: -3px; }
+.cell .peektag { position: absolute; right: 3px; top: 3px; background: var(--edge); color: var(--ink); font: 400 11px var(--marker); padding: 1px 4px; }
+.mask.lupa { color: var(--base-dark); }
+@media (prefers-reduced-motion: reduce) { .fx-dark { animation: none; } .pcard.new, .ptoast:not([hidden]) { animation: none; } }

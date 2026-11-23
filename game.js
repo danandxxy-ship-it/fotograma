@@ -1,6 +1,7 @@
 const { buildAnswerKey, check } = require('./matcher');
 const { TMDB, Demo } = require('./catalog');
 const { Music, STYLES } = require('./music');
+const { POWERS, HAND_MAX, COOLDOWN, draw, Bots } = require('./arcade');
 
 const PICK_MS = 15000;
 const REVEAL_MS = 8000;
@@ -42,18 +43,19 @@ class Room {
     this.players = new Map(); // id -> player
     this.order = [];
     this.hostId = null;
-    this.settings = { cats: ['filmes', 'series', 'animes', 'desenhos'], rounds: 10, time: 60, diff: 'medio', musicStyle: 'mix' };
+    this.settings = { cats: ['filmes', 'series', 'animes', 'desenhos'], rounds: 10, time: 60, diff: 'medio', musicStyle: 'mix', arcade: false, botLevel: 'medio' };
     this.phase = 'lobby';
     this.catalog = globalCatalog; this.catalogError = null;
     this.round = 0; this.used = new Set(); this.timers = [];
     this.feed = []; this.touched = Date.now();
+    this.bots = new Bots(this);
   }
 
   // ---------- jogadores ----------
   addPlayer(id, name, socket) {
     let p = this.players.get(id);
     if (!p) {
-      p = { id, name, score: 0, connected: true, guessed: false, skipped: false, roundPts: 0, lastGuess: 0, joinedAt: Date.now(), sockets: new Set() };
+      p = { id, name, score: 0, connected: true, guessed: false, skipped: false, roundPts: 0, lastGuess: 0, joinedAt: Date.now(), sockets: new Set(), hand: [], fx: {} };
       this.players.set(id, p); this.order.push(id);
       this.push({ t: 'sys', text: `${name} entrou na sala` });
     }
@@ -74,7 +76,7 @@ class Room {
         this.players.delete(id); this.order = this.order.filter((x) => x !== id);
         this.push({ t: 'sys', text: `${p.name} saiu` });
       }
-      if (this.hostId === id) this.hostId = this.order.find((x) => this.players.get(x)?.connected) || null;
+      if (this.hostId === id) this.hostId = this.order.find((x) => this.players.get(x)?.connected && !this.players.get(x).isBot) || null;
       if (this.phase === 'picking' && this.pickerId === id) this.autoPick();
       this.checkAllGuessed();
       this.broadcast();
@@ -85,12 +87,13 @@ class Room {
     this.players.delete(id); this.order = this.order.filter((x) => x !== id);
     this.push({ t: 'sys', text: `${p.name} saiu` });
     const sock = this.io.sockets.sockets.get(socketId); if (sock) sock.leave(this.code);
-    if (this.hostId === id) this.hostId = this.order.find((x) => this.players.get(x)?.connected) || null;
+    if (this.hostId === id) this.hostId = this.order.find((x) => this.players.get(x)?.connected && !this.players.get(x).isBot) || null;
     if (this.phase === 'picking' && this.pickerId === id) this.autoPick();
     this.checkAllGuessed();
     this.broadcast();
   }
   connected() { return this.order.map((id) => this.players.get(id)).filter((p) => p && p.connected); }
+  humans() { return this.connected().filter((p) => !p.isBot); }
 
   push(item) { this.feed.push({ ...item, at: Date.now() }); if (this.feed.length > 40) this.feed.shift(); }
 
@@ -107,6 +110,8 @@ class Room {
     if ([30, 45, 60, 90].includes(+s.time)) this.settings.time = +s.time;
     if (['facil', 'medio', 'dificil'].includes(s.diff)) this.settings.diff = s.diff;
     if (STYLES.includes(s.musicStyle)) this.settings.musicStyle = s.musicStyle;
+    if (s.arcade !== undefined) this.settings.arcade = s.arcade === true || s.arcade === '1' || s.arcade === 1;
+    if (['facil', 'medio', 'craque'].includes(s.botLevel)) this.settings.botLevel = s.botLevel;
     this.broadcast();
   }
 
@@ -127,7 +132,7 @@ class Room {
     if (this.needKey()) return;
     this.clearTimers();
     this.round = 0; this.used.clear(); this.pickerTurn = -1;
-    for (const p of this.players.values()) p.score = 0;
+    for (const p of this.players.values()) { p.score = 0; p.hand = []; p.fx = {}; p.shield = false; }
     this.push({ t: 'sys', text: 'Partida começou' });
     this.nextRound();
   }
@@ -150,13 +155,23 @@ class Room {
     this.key = buildAnswerKey(this.title.titles);
     this.artistKey = this.title.artistTitles ? buildAnswerKey(this.title.artistTitles) : null;
     this.revealed = []; this.correctCount = 0; this.firstDone = false;
-    for (const p of this.players.values()) { p.guessed = false; p.skipped = false; p.skipSaid = false; p.roundPts = 0; }
+    const mode = this.title.isMusic ? 'music' : 'film';
+    for (const p of this.players.values()) {
+      p.guessed = false; p.skipped = false; p.skipSaid = false; p.roundPts = 0;
+      p.fx = {}; p.toll = null; p.double = false; p.radar = false; p.hint = false; p.peek = [];
+      if (this.settings.arcade) {
+        p.hand = (p.hand || []).filter((k) => !POWERS[k].mode || POWERS[k].mode === mode);
+        const n = this.round === 1 ? 2 : 1;
+        for (let k = 0; k < n && p.hand.length < HAND_MAX; k++) p.hand.push(draw(mode, p.hand));
+      }
+    }
     const conn = this.connected();
     this.pickerTurn = (this.pickerTurn + 1) % Math.max(1, conn.length);
     this.pickerId = conn[this.pickerTurn]?.id;
     this.phase = 'picking';
     this.endsAt = Date.now() + PICK_MS;
     this.later(PICK_MS, () => this.autoPick());
+    this.bots.onPicking();
     this.broadcast();
   }
 
@@ -181,6 +196,7 @@ class Room {
       this.later(T * 0.45, () => this.autoExtra());
       this.later(T * 0.75, () => this.autoExtra());
       this.later(T, () => this.endRound());
+      this.bots.onGuessing();
       this.broadcast();
     } else if (this.phase === 'guessing') {
       // frame extra escolhido pelo projecionista
@@ -188,6 +204,7 @@ class Room {
       if (Date.now() - this.startedAt < 8000) return;
       this.revealed.push(i);
       this.push({ t: 'sys', text: `Pista: frame ${i + 1} revelado` });
+      this.bots.onExtraFrame();
       this.broadcast();
     }
   }
@@ -203,6 +220,7 @@ class Room {
       this.revealed.push(k);
       this.push({ t: 'sys', text: `Pista: frame ${k + 1} revelado` });
     }
+    this.bots.onExtraFrame();
     this.broadcast();
   }
 
@@ -210,6 +228,7 @@ class Room {
     const p = this.players.get(id);
     if (!p || this.phase !== 'guessing' || p.guessed) return null;
     const now = Date.now();
+    if ((p.fx.congela || 0) > now) return { result: 'frozen', left: p.fx.congela - now };
     if (now - p.lastGuess < 700) return null;
     p.lastGuess = now;
     const clean = String(text || '').slice(0, 80).trim();
@@ -242,17 +261,24 @@ class Room {
       const speed = Math.round((100 + 200 * left) * mult);
       const placeBonus = PLACE_BONUS[place - 1] || 0;
       const exactBonus = r.exact ? EXACT_BONUS : 0;
-      const pts = Math.round((speed + placeBonus + exactBonus) * (artistOnly ? 0.6 : 1));
+      let pts = Math.round((speed + placeBonus + exactBonus) * (artistOnly ? 0.6 : 1));
+      if (p.double) { pts *= 2; p.double = false; r.double = true; }
+      let tollMsg = '';
+      const taker = p.toll && this.players.get(p.toll);
+      if (taker) { const cut = Math.round(pts * 0.3); pts -= cut; taker.score += cut; r.toll = cut; tollMsg = ` (pedágio: ${cut} para ${taker.name})`; p.toll = null; }
+      // em arcade, quem acerta primeiro ganha uma carta
+      if (this.settings.arcade && place === 1 && p.hand.length < HAND_MAX) { p.hand.push(draw(this.title.isMusic ? 'music' : 'film', p.hand)); r.card = true; }
       this.firstDone = true;
       p.guessed = true; p.roundPts = pts; p.score += pts;
       r.artistOnly = artistOnly; r.pts = pts; r.place = place; r.placeBonus = placeBonus; r.exactBonus = exactBonus;
       const picker = this.players.get(this.pickerId);
       if (picker && picker.id !== id) { picker.score += 20; picker.roundPts += 20; }
       // a mensagem pública nunca contém o palpite: o nome só aparece no fim da rodada
-      this.push({ t: 'ok', who: p.name, text: `${p.name} acertou em ${place}º${artistOnly ? ', só o artista' : r.exact ? ', título exato' : ''}! +${pts}` });
+      this.push({ t: 'ok', who: p.name, text: `${p.name} acertou em ${place}º${artistOnly ? ', só o artista' : r.exact ? ', título exato' : ''}! +${pts}${r.double ? ' (dobro)' : ''}${tollMsg}` });
       this.checkAllGuessed();
     } else {
       // chute errado só aparece para os outros se estiver longe da resposta (não dá pista)
+      if (p.radar) r.heat = r.score >= 0.6 ? 'quente' : r.score >= 0.35 ? 'morno' : 'frio';
       const hide = r.result === 'close' || r.score >= 0.45 || this.correctCount > 0 && r.score >= 0.3;
       this.push({ t: r.result === 'close' ? 'close' : 'guess', who: p.name, text: r.result === 'close' ? `${p.name} chegou perto…` : hide ? '••••••' : clean });
     }
@@ -270,9 +296,52 @@ class Room {
     this.broadcast();
   }
 
+  // ---------- arcade: cartas de poder ----------
+  usePower(id, card, targetId) {
+    const p = this.players.get(id), now = Date.now(), P = POWERS[card];
+    if (!this.settings.arcade || !p || !P || !p.hand || !p.hand.includes(card)) return 'nope';
+    if (P.type === 'atk' ? this.phase !== 'guessing' : !['picking', 'guessing'].includes(this.phase)) return 'fase';
+    if ((p.cdUntil || 0) > now) return 'espera';
+    let t = null;
+    if (P.type === 'atk') {
+      t = this.players.get(targetId);
+      if (!t || t.id === id || !t.connected || t.guessed) return 'alvo';
+    }
+    p.hand.splice(p.hand.indexOf(card), 1);
+    p.cdUntil = now + COOLDOWN;
+    let from = p, bounced = false, blocked = false;
+    if (t && t.shield) {
+      t.shield = false;
+      if (p.shield) { p.shield = false; blocked = true; } else { bounced = true; [from, t] = [t, p]; }
+    }
+    if (blocked) {
+      this.push({ t: 'power', text: `${p.name} jogou ${P.name} em ${this.players.get(targetId).name}, mas os dois espelhos se anularam` });
+    } else if (t) {
+      if (P.dur) t.fx[card] = now + P.dur;
+      if (card === 'pedagio') t.toll = from.id;
+      this.push({ t: 'power', text: bounced ? `${p.name} jogou ${P.name} em ${from.name}, mas o espelho devolveu!` : `${p.name} jogou ${P.name} em ${t.name}` });
+      if (P.dur) this.later(P.dur + 50, () => this.broadcast());
+    } else {
+      if (card === 'espiar') {
+        const free = this.title.frames.map((_, k) => k).filter((k) => !(this.revealed || []).includes(k) && !p.peek.includes(k));
+        if (free.length) p.peek.push(free[Math.floor(Math.random() * free.length)]);
+      }
+      if (card === 'dica') p.hint = true;
+      if (card === 'escudo') p.shield = true;
+      if (card === 'dobro') p.double = true;
+      if (card === 'radar') p.radar = true;
+      this.push({ t: 'power', text: `${p.name} usou ${P.name}` });
+    }
+    this.io.to(this.code).emit('power', { from: p.id, to: t ? t.id : p.id, via: targetId || null, card, bounced, blocked });
+    this.broadcast();
+    return 'ok';
+  }
+
   checkAllGuessed() {
     if (this.phase !== 'guessing') return;
     const conn = this.connected();
+    const hum = conn.filter((p) => !p.isBot);
+    if (hum.length && hum.every((p) => p.guessed || p.skipped) && conn.some((p) => p.isBot && !p.guessed && !p.skipped)) this.bots.hurry();
     if (!conn.length || !conn.every((p) => p.guessed || p.skipped)) return;
     if (conn.some((p) => p.skipped)) this.push({ t: 'sys', text: conn.some((p) => p.guessed) ? 'Quem faltava passou a vez' : 'Ninguém sabia: todo mundo passou' });
     this.endRound();
@@ -324,8 +393,22 @@ class Room {
       answer: showAll && t ? { title: t.title, original: t.original, artist: t.artist || null, year: t.year, kind: t.kind, poster: t.poster } : null,
       players: this.order.map((id) => this.players.get(id)).filter(Boolean).map((p) => ({
         id: p.id, name: p.name, score: p.score, connected: p.connected, guessed: p.guessed, skipped: p.skipped, roundPts: p.roundPts, joinedAt: p.joinedAt,
+        isBot: !!p.isBot, shield: !!p.shield, cards: (p.hand || []).length,
+        fx: Object.keys(p.fx || {}).filter((k) => p.fx[k] > now), toll: !!p.toll,
       })),
+      arcade: this.settings.arcade ? this.arcadeFor(forId, now) : null,
       feed: this.feed.slice(-25),
+    };
+  }
+  arcadeFor(id, now) {
+    const p = this.players.get(id); if (!p) return null;
+    const t = this.title, live = t && ['guessing', 'reveal'].includes(this.phase);
+    const fx = {}; for (const k in p.fx) if (p.fx[k] > now) fx[k] = p.fx[k] - now;
+    return {
+      hand: p.hand || [], cd: Math.max(0, (p.cdUntil || 0) - now), fx,
+      shield: !!p.shield, double: !!p.double, radar: !!p.radar, toll: !!p.toll,
+      peek: live ? (p.peek || []).map((i) => ({ i, full: t.frames[i].full, thumb: t.frames[i].thumb, start: t.frames[i].start, len: t.frames[i].len })) : [],
+      hint: live && p.hint && this.phase === 'guessing' ? makeMask(t.title, 2) + (t.year ? ` · ${t.year}` : '') : null,
     };
   }
   broadcast() {
@@ -341,7 +424,7 @@ function createRoom(io) { const code = newCode(); const r = new Room(io, code); 
 // limpa salas abandonadas
 setInterval(() => {
   for (const [code, r] of rooms) {
-    if (!r.connected().length && Date.now() - r.touched > 10 * 60 * 1000) { r.clearTimers(); rooms.delete(code); }
+    if (!r.humans().length && Date.now() - r.touched > 10 * 60 * 1000) { r.clearTimers(); rooms.delete(code); }
   }
 }, 60000).unref();
 
@@ -349,7 +432,7 @@ setInterval(() => {
 function stats() {
   let players = 0, playing = 0, active = 0;
   for (const r of rooms.values()) {
-    const n = r.connected().length;
+    const n = r.humans().length;
     if (!n) continue;
     active++; players += n;
     if (r.phase !== 'lobby' && r.phase !== 'end') playing += n;

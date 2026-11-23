@@ -78,7 +78,10 @@
     else { set.delete('musicas'); set.has(b.dataset.v) ? set.delete(b.dataset.v) : set.add(b.dataset.v); }
     if (set.size) sendSettings({ cats: [...set] });
   };
-  for (const [id, key] of [['#opt-rounds', 'rounds'], ['#opt-time', 'time'], ['#opt-diff', 'diff'], ['#opt-music', 'musicStyle']]) {
+  $('#opt-arcade').onclick = (e) => { const b = e.target.closest('button'); if (b && isHost()) sendSettings({ arcade: b.dataset.v === '1' }); };
+  $('#b-addbot').onclick = () => { if (isHost()) socket.emit('addbot'); };
+  $('#lobby-players').onclick = (e) => { const b = e.target.closest('[data-kick]'); if (b && isHost()) socket.emit('kickbot', b.dataset.kick); };
+  for (const [id, key] of [['#opt-rounds', 'rounds'], ['#opt-time', 'time'], ['#opt-diff', 'diff'], ['#opt-music', 'musicStyle'], ['#opt-bot', 'botLevel']]) {
     $(id).onclick = (e) => { const b = e.target.closest('button'); if (b && isHost()) sendSettings({ [key]: b.dataset.v }); };
   }
   $('#b-key').onclick = () => { const k = $('#in-key').value.trim(); if (k) { $('#lobby-msg').textContent = 'Testando a chave…'; socket.emit('key', k); } };
@@ -90,8 +93,9 @@
   $('#cells').onclick = (e) => {
     const b = e.target.closest('.cell'); if (!b) return;
     if (S && S.mode === 'music' && b.classList.contains('lit')) { // trecho já tocado: ouvir de novo
-      const r = S.revealed.find((x) => x.i === +b.dataset.i); if (r) playSeg(r.start, r.len); return;
+      const r = S.revealed.concat(S.arcade ? S.arcade.peek : []).find((x) => x.i === +b.dataset.i); if (r) playSeg(r.start, r.len); return;
     }
+    if (S && b.classList.contains('seen')) { viewIdx = +b.dataset.i; renderGame(S); return; } // projeta este frame na sua tela
     if (b.disabled) return;
     socket.emit('pick', +b.dataset.i);
   };
@@ -114,6 +118,7 @@
   function stopMic() { if (rec && listening) { try { rec.stop(); } catch {} } }
   function startMic() {
     if (!Rec || listening || micBtn.disabled) return;
+    if (hasFx('teclado')) { micInfo('Teclado doido: o microfone está desligado.'); return; }
     stopAudio(); // não deixa o microfone ouvir a música do jogo
     rec = new Rec();
     rec.lang = 'pt-BR'; rec.interimResults = true; rec.maxAlternatives = 5; rec.continuous = false;
@@ -148,6 +153,12 @@
   socket.on('verdict', (v) => {
     const r = v.result;
     const el = $('#verdict');
+    if (r === 'frozen') {
+      el.textContent = 'Congelado!'; el.className = 'verdict show close';
+      $('#bonus').textContent = `Dá pra chutar em ${Math.ceil(v.left / 1000)} s`; $('#bonus').hidden = false;
+      clearTimeout(vTimer); vTimer = setTimeout(() => { el.className = 'verdict'; $('#bonus').hidden = true; }, 1600);
+      SFX.play('freeze'); return;
+    }
     el.textContent = r === 'correct' ? (v.artistOnly ? 'Artista certo!' : v.exact ? 'Título exato!' : v.place === 1 ? 'Primeiro!' : 'Acertou!') : r === 'close' ? 'Quase!' : 'Não é…';
     el.className = 'verdict show ' + r;
     if (r === 'correct') {
@@ -155,12 +166,147 @@
       if (v.placeBonus) parts.push(`${v.place}º lugar +${v.placeBonus}`);
       if (v.exactBonus) parts.push(`título exato +${v.exactBonus}`);
       if (v.artistOnly) parts.push('só o artista, vale 60%');
+      if (v.double) parts.push('dobro');
+      if (v.toll) parts.push(`pedágio levou ${v.toll}`);
+      if (v.card) parts.push('ganhou uma lâmina');
       $('#bonus').textContent = `+${v.pts} pontos` + (parts.length ? ` (${parts.join(', ')})` : '');
       $('#bonus').hidden = false;
+    } else if (v.heat) {
+      $('#bonus').textContent = `Radar: ${v.heat}`; $('#bonus').hidden = false;
+      setTimeout(() => ($('#bonus').hidden = true), 2200);
     }
     clearTimeout(vTimer); vTimer = setTimeout(() => (el.className = 'verdict'), 1600);
     SFX.play(r === 'correct' ? (v.exact ? 'exact' : 'correct') : r === 'close' ? 'close' : 'wrong');
     buzz(r === 'correct' ? [30, 40, 60] : r === 'close' ? 25 : 10);
+  });
+
+  // ---------- modo Arcade: lâminas de poder ----------
+  const ICON = {
+    borrao: '<path d="M4 8c3-2 5 2 8 0s5-2 8 0M4 12c3-2 5 2 8 0s5-2 8 0M4 16c3-2 5 2 8 0s5-2 8 0"/>',
+    virada: '<path d="M5 9a7 7 0 0 1 13-2M19 15a7 7 0 0 1-13 2"/><path d="M18 3v4h-4M6 21v-4h4"/>',
+    tinta: '<path d="M8 5c3-2 6 1 5 3 3 0 4 4 1 5 2 3-2 6-5 4-2 3-7 1-6-2-3-1-3-6 1-6-1-3 2-5 4-4z"/>',
+    apagao: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10c1 1 1 2 1 3h6c0-1 0-2 1-3a6 6 0 0 0-4-10z"/><path d="M4 4l16 16"/>',
+    mudo: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l5 6M21 9l-5 6"/>',
+    acelera: '<path d="M3 6l8 6-8 6zM12 6l8 6-8 6z"/>',
+    congela: '<path d="M12 2v20M3.3 7l17.4 10M20.7 7L3.3 17"/><path d="M9 4l3 2 3-2M9 20l3-2 3 2"/>',
+    teclado: '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h1M10 10h1M14 10h1M18 10h0M7 14h10"/>',
+    pedagio: '<path d="M3 20V8M3 9h18v4H3"/><path d="M8 9l3 4M14 9l3 4"/>',
+    espiar: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    dica: '<circle cx="10" cy="10" r="6"/><path d="M15 15l6 6M8 10h4"/>',
+    escudo: '<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M9 8l4-3M9 13l7-5"/>',
+    dobro: '<path d="M4 7l6 10M10 7l-6 10M14 9a3 3 0 1 1 5 2l-5 6h6"/>',
+    radar: '<path d="M12 12l6-6"/><path d="M5 19a10 10 0 1 1 14 0M8 16a6 6 0 1 1 8 0"/><circle cx="12" cy="12" r="1.5"/>',
+  };
+  const POW = {
+    borrao: ['atk', 'Borrão', 'Embaça a tela da pessoa por 12 s'],
+    virada: ['atk', 'Tela virada', 'A imagem dela fica de ponta-cabeça e espelhada por 12 s'],
+    tinta: ['atk', 'Tinta na lente', 'Mancha de tinta cobrindo a tela dela por 12 s'],
+    apagao: ['atk', 'Apagão', 'Ela só vê o que a lanterna ilumina por 10 s'],
+    mudo: ['atk', 'Fone mudo', 'Corta o som dela por 10 s'],
+    acelera: ['atk', 'Esquilo', 'A música dela toca acelerada por 12 s'],
+    congela: ['atk', 'Congelar', 'Ela não consegue chutar por 7 s'],
+    teclado: ['atk', 'Teclado doido', 'Troca as letras que ela digita e desliga o microfone por 12 s'],
+    pedagio: ['atk', 'Pedágio', 'Se ela acertar nesta rodada, 30% dos pontos vão pra você'],
+    espiar: ['buf', 'Espiada', 'Você vê um frame a mais que ninguém viu'],
+    dica: ['buf', 'Lupa', 'Mostra as iniciais do título e o ano só pra você'],
+    escudo: ['buf', 'Espelho', 'O próximo ataque contra você volta pra quem jogou'],
+    dobro: ['buf', 'Dobro', 'Seu próximo acerto nesta rodada vale o dobro'],
+    radar: ['buf', 'Radar', 'Cada chute errado diz se está quente, morno ou frio'],
+  };
+  const FXNAME = { borrao: 'borrado', virada: 'de ponta-cabeça', tinta: 'manchado', apagao: 'no escuro', congela: 'congelado', teclado: 'teclado doido', mudo: 'mudo', acelera: 'esquilo' };
+  let viewIdx = null, lastHand = '', pendingCard = null;
+  const fxLeft = (k) => (S && S.arcade && S.arcade.fx[k] ? S.arcade.fx[k] - (performance.now() - stateAt) : 0);
+  const hasFx = (k) => fxLeft(k) > 0;
+  const targets = () => S.players.filter((p) => p.id !== S.me && p.connected && !p.guessed);
+  function cardUsable(k) {
+    const A = S.arcade, t = POW[k][0], ph = S.phase;
+    if (!A || A.cd - (performance.now() - stateAt) > 0) return false;
+    if (t === 'atk') return ph === 'guessing' && targets().length > 0;
+    if (!['picking', 'guessing'].includes(ph)) return false;
+    return k === 'escudo' ? !A.shield : !me().guessed;
+  }
+  function renderHand() {
+    const A = S && S.arcade, show = !!A && ['picking', 'guessing', 'reveal'].includes(S.phase);
+    $('#hand').hidden = !show; if (!show) return;
+    const key = A.hand.join(',');
+    const grew = A.hand.length > (lastHand ? lastHand.split(',').length : 0) && key !== lastHand;
+    $('#hand-cards').innerHTML = A.hand.length ? A.hand.map((k, i) => {
+      const [t, name] = POW[k];
+      return `<button type="button" class="pcard ${t}${grew && i === A.hand.length - 1 ? ' new' : ''}" data-card="${k}" ${cardUsable(k) ? '' : 'disabled'} aria-label="${name}: ${POW[k][2]}"><span class="win"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg></span><b>${name}</b></button>`;
+    }).join('') : '<span class="hand-empty">Sem lâminas. Chega uma nova a cada rodada.</span>';
+    lastHand = key;
+    const st = [];
+    if (A.toll) st.push('Pedágio em você');
+    if (A.shield) st.push('Espelho ativo');
+    if (A.double) st.push('Dobro no próximo acerto');
+    if (A.radar) st.push('Radar ligado');
+    if (A.cd - (performance.now() - stateAt) > 0) st.push('recarregando…');
+    $('#hand-state').textContent = st.join(' · ');
+  }
+  $('#hand-cards').onclick = (e) => {
+    const b = e.target.closest('.pcard'); if (!b || b.disabled) return;
+    const k = b.dataset.card, [t, name, desc] = POW[k];
+    if (t === 'buf') { socket.emit('power', { card: k }); return; }
+    pendingCard = k;
+    $('#target-t').textContent = `${name} em quem?`; $('#target-desc').textContent = desc;
+    $('#target-list').innerHTML = targets().sort((a, b2) => b2.score - a.score).map((p) =>
+      `<button type="button" class="menu-item" data-to="${esc(p.id)}"><b>${esc(p.name)}</b><small>${p.score} pontos${p.isBot ? ' · bot' : ''}${p.skipped ? ' · passou a vez' : ''}</small></button>`).join('');
+    $('#target').hidden = false; SFX.play('click');
+    $('#target-list button')?.focus();
+  };
+  $('#target-list').onclick = (e) => {
+    const b = e.target.closest('[data-to]'); if (!b || !pendingCard) return;
+    socket.emit('power', { card: pendingCard, target: b.dataset.to });
+    pendingCard = null; $('#target').hidden = true;
+  };
+  $('#target-cancel').onclick = () => { pendingCard = null; $('#target').hidden = true; };
+  socket.on('powerfail', (why) => { const m = { alvo: 'Essa pessoa já acertou ou saiu.', fase: 'Agora não dá pra usar essa lâmina.', espera: 'Espere a lâmina recarregar.' }[why]; if (m) micInfo(m); });
+
+  let toastT;
+  function toast(text, hit) {
+    const el = $('#ptoast'); el.textContent = text; el.className = 'ptoast' + (hit ? ' hit' : ''); el.hidden = false;
+    clearTimeout(toastT); toastT = setTimeout(() => (el.hidden = true), 2600);
+  }
+  socket.on('power', (ev) => {
+    if (!S) return;
+    const [t, name] = POW[ev.card] || ['buf', '?'];
+    const fromN = nameOf(ev.from), toN = nameOf(ev.to);
+    if (ev.blocked) { toast(`Espelho contra espelho: ${name} anulado`); SFX.play('mirror'); return; }
+    if (ev.bounced) {
+      if (ev.via === S.me) { toast(`Seu espelho devolveu o ${name} pra ${fromN}!`); SFX.play('mirror'); }
+      else if (ev.from === S.me) { toast(`${nameOf(ev.via)} tinha espelho! Seu ${name} voltou pra você`, true); SFX.play('mirror'); setTimeout(() => SFX.play(ev.card === 'congela' ? 'freeze' : 'zap'), 250); buzz([40, 30, 80]); }
+      else toast(`${name} de ${fromN} bateu no espelho de ${nameOf(ev.via)}`);
+      return;
+    }
+    if (t === 'atk' && ev.to === S.me) { toast(`${fromN} jogou ${name} em você!`, true); SFX.play(ev.card === 'congela' ? 'freeze' : 'zap'); buzz([60, 40, 60]); }
+    else if (ev.from === S.me) { toast(t === 'atk' ? `Você jogou ${name} em ${toN}` : `Você usou ${name}`); SFX.play('power'); }
+    else if (t === 'atk') toast(`${fromN} jogou ${name} em ${toN}`);
+  });
+
+  // efeitos na sua tela (rodam sozinhos e somem no tempo certo)
+  function applyFx() {
+    if (!S) return;
+    const scr = $('#screen');
+    scr.classList.toggle('fx-borrao', hasFx('borrao'));
+    scr.classList.toggle('fx-virada', hasFx('virada'));
+    $('#fx-ink').hidden = !hasFx('tinta');
+    $('#fx-dark').hidden = !hasFx('apagao');
+    const frozen = hasFx('congela');
+    $('#f-guess').classList.toggle('frozen', frozen);
+    if (frozen) $('#in-guess').placeholder = `Congelado… ${Math.ceil(fxLeft('congela') / 1000)} s`;
+    aud.muted = hasFx('mudo');
+    const fast = hasFx('acelera');
+    if ((aud.playbackRate > 1) !== fast) { aud.preservesPitch = !fast; aud.mozPreservesPitch = !fast; aud.playbackRate = fast ? 1.6 : 1; }
+    if (hasFx('teclado') && listening) stopMic();
+    if (!$('#v-game').hidden) renderHand();
+  }
+  setInterval(applyFx, 250);
+  // Teclado doido: troca letras enquanto a pessoa digita
+  $('#in-guess').addEventListener('input', (e) => {
+    if (!hasFx('teclado') || e.inputType !== 'insertText') return;
+    const el = e.target, v = el.value;
+    if (v.length > 1 && Math.random() < 0.4) el.value = v.slice(0, -2) + v.slice(-1) + v.slice(-2, -1);
+    else if (Math.random() < 0.25) el.value = v.slice(0, -1) + 'aeiouxkzq'[Math.floor(Math.random() * 9)];
   });
 
   const isHost = () => S && S.hostId === S.me;
@@ -331,7 +477,7 @@
   }) || ($('#p-sound .snd-state').textContent = SFX.on ? 'ligado' : 'mudo');
   document.querySelectorAll('.snd').forEach((b) => (b.onclick = () => { SFX.toggle(); paintSound(); }));
   paintSound();
-  ['#opt-cats', '#opt-rounds', '#opt-time', '#opt-diff'].forEach((id) => $(id).addEventListener('click', () => SFX.play('click')));
+  ['#opt-cats', '#opt-rounds', '#opt-time', '#opt-diff', '#opt-arcade', '#opt-bot', '#b-addbot'].forEach((id) => $(id).addEventListener('click', () => SFX.play('click')));
 
   function render(prev) {
     const ph = S.phase;
@@ -346,8 +492,9 @@
     $('#lobby-code').textContent = S.code;
     const online = S.players.filter((p) => p.connected).length;
     $('#lobby-count').textContent = `(${S.players.length}${online < S.players.length ? `, ${online} conectados` : ''})`;
+    const hostNow = isHost();
     $('#lobby-players').innerHTML = S.players.map((p) =>
-      `<li class="${p.connected ? '' : 'off'}">${esc(p.name)}${p.id === S.me ? '<span class="me">você</span>' : ''}${p.id === S.hostId ? '<span class="host">anfitrião</span>' : ''}${p.connected ? '' : '<span class="st">sem conexão</span>'}</li>`).join('');
+      `<li class="${p.connected ? '' : 'off'}${p.isBot ? ' bot' : ''}">${esc(p.name)}${p.isBot ? `<span class="bottag">bot</span>${hostNow ? `<button type="button" class="kick" data-kick="${esc(p.id)}" aria-label="Tirar ${esc(p.name)}">tirar</button>` : ''}` : ''}${p.id === S.me ? '<span class="me">você</span>' : ''}${p.id === S.hostId ? '<span class="host">anfitrião</span>' : ''}${p.connected ? '' : '<span class="st">sem conexão</span>'}</li>`).join('');
     if (!$('#people').hidden) renderPeople();
     const host = isHost();
     $('#host-box').hidden = !host;
@@ -358,6 +505,10 @@
       for (const b of $(id).children) b.setAttribute('aria-pressed', String(S.settings[key]) === b.dataset.v);
     }
     $('#opt-music-box').hidden = !S.settings.cats.includes('musicas');
+    for (const b of $('#opt-arcade').children) b.setAttribute('aria-pressed', String(S.settings.arcade ? 1 : 0) === b.dataset.v);
+    $('#arcade-note').hidden = !S.settings.arcade;
+    for (const b of $('#opt-bot').children) b.setAttribute('aria-pressed', S.settings.botLevel === b.dataset.v);
+    $('#b-addbot').disabled = S.players.filter((p) => p.isBot).length >= 7 || S.players.length >= 16;
     for (const b of $('#opt-music').children) b.setAttribute('aria-pressed', S.settings.musicStyle === b.dataset.v);
     $('#b-start').disabled = S.needKey;
     $('#b-start').textContent = S.needKey ? 'Cole a chave para rodar' : 'Rodar o filme';
@@ -394,7 +545,8 @@
     // tela do projetor
     const screen = $('#screen'), img = $('#frame-main');
     const latest = S.revealed[S.revealed.length - 1];
-    const revealKey = S.round + ':' + S.revealed.map((r) => r.i).join(',');
+    const revealKey = S.round + ':' + S.revealed.map((r) => r.i).join(',') + '|' + (S.arcade ? S.arcade.peek.map((r) => r.i).join(',') : '');
+    if (prev && (prev.round !== S.round || prev.revealed.length !== S.revealed.length)) viewIdx = null; // frame novo: volta pro último
     const showVinyl = music && (ph === 'guessing' || ph === 'reveal');
     $('#vinyl').hidden = !showVinyl;
     $('#mute-note').hidden = !(showVinyl && !(SFX.on && SFX.volume > 0));
@@ -405,8 +557,11 @@
         ? 'Você é o DJ. Toque num trecho da fita para tocar.'
         : `${nameOf(S.pickerId)} está escolhendo o trecho…`;
     } else if (latest && (ph === 'guessing' || ph === 'reveal')) {
-      if (img.dataset.src !== latest.full) {
-        img.dataset.src = latest.full; img.src = latest.full; img.hidden = false;
+      const pool = S.revealed.concat(S.arcade ? S.arcade.peek : []);
+      const chosen = viewIdx !== null && pool.find((f) => f.i === viewIdx);
+      const shown = chosen || latest;
+      if (img.dataset.src !== shown.full) {
+        img.dataset.src = shown.full; img.src = shown.full; img.hidden = false;
         screen.classList.remove('flick'); void screen.offsetWidth; screen.classList.add('flick');
       }
       $('#screen-empty').hidden = true;
@@ -428,12 +583,16 @@
       if (S.answer.poster) { pImg.src = S.answer.poster; pImg.hidden = false; } else pImg.hidden = true;
     } else $('#answer').hidden = true;
 
-    $('#mask').textContent = S.mask || '';
+    const lupa = S.arcade && S.arcade.hint;
+    $('#mask').textContent = lupa ? 'Lupa: ' + lupa : S.mask || '';
+    $('#mask').classList.toggle('lupa', !!lupa);
 
     // película (folha de contato)
     const n = S.frameCount || 8;
-    const revealedIdx = new Set(S.revealed.map((r) => r.i));
-    const thumbs = {}; (S.allFrames || S.revealed).forEach((f) => (thumbs[f.i] = f.thumb));
+    const peeks = S.arcade ? S.arcade.peek : [];
+    const peekIdx = new Set(peeks.map((r) => r.i));
+    const revealedIdx = new Set(S.revealed.map((r) => r.i).concat([...peekIdx]));
+    const thumbs = {}; (S.allFrames || S.revealed).concat(peeks).forEach((f) => (thumbs[f.i] = thumbs[f.i] || f.thumb));
     const canPick = (ph === 'picking' && amPicker) || (ph === 'guessing' && amPicker && S.revealed.length < 3 && S.canExtraIn <= 0 && !lateTimer());
     const freshSet = new Set(prev && prev.round === S.round ? S.revealed.filter((r) => !(prev.revealed || []).some((q) => q.i === r.i)).map((r) => r.i) : S.revealed.map((r) => r.i));
     if (revealKey !== lastRevealKey || ph !== lastPhase || $('#cells').children.length !== n || canPick !== $('#cells').classList.contains('picking')) {
@@ -441,9 +600,9 @@
       $('#cells').innerHTML = Array.from({ length: ph === 'loading' ? 8 : n }, (_, i) => {
         const t = thumbs[i];
         const on = revealedIdx.has(i);
-        const dis = music && on ? false : (!canPick || on);
-        return `<button class="cell${music ? ' mus' : ''}${music && on ? ' lit' : ''}${on && freshSet.has(i) ? ' fresh' : ''}" data-i="${i}" ${dis ? 'disabled' : ''} aria-label="${music ? 'Trecho' : 'Frame'} ${i + 1}${on ? (music ? ', toque para ouvir de novo' : ', projetado') : ''}">` +
-          (music ? waveSvg(i + 1 + S.round * 5) : t ? `<img src="${esc(t)}" alt="" loading="lazy">` : '') + `<span class="n">${i + 1}${'ABCDEFGH'[i]}</span>` + (on ? circleSvg(i + S.round * 8) : '') + '</button>';
+        const dis = on ? false : !canPick;
+        return `<button class="cell${music ? ' mus' : ''}${music && on ? ' lit' : ''}${!music && on && ph !== 'picking' ? ' seen' : ''}${peekIdx.has(i) ? ' peek' : ''}${on && freshSet.has(i) ? ' fresh' : ''}" data-i="${i}" ${dis ? 'disabled' : ''} aria-label="${music ? 'Trecho' : 'Frame'} ${i + 1}${on ? (music ? ', toque para ouvir de novo' : ', projetado') : ''}">` +
+          (music ? waveSvg(i + 1 + S.round * 5) : t ? `<img src="${esc(t)}" alt="" loading="lazy">` : '') + (peekIdx.has(i) && ph !== 'reveal' ? '<span class="peektag">só você</span>' : '') + `<span class="n">${i + 1}${'ABCDEFGH'[i]}</span>` + (on ? circleSvg(i + S.round * 8) : '') + '</button>';
       }).join('');
       lastRevealKey = revealKey;
       if (canPick && ph === 'picking' && !matchMedia('(pointer:coarse)').matches) $('#cells .cell:not(:disabled)')?.focus();
@@ -464,7 +623,9 @@
     // placar
     const ranked = [...S.players].sort((a, b) => b.score - a.score);
     $('#scoreline').innerHTML = ranked.map((p) =>
-      `<li class="${p.guessed ? 'done' : p.skipped ? 'skip' : ''} ${p.id === S.pickerId ? 'pick' : ''} ${p.connected ? '' : 'off'}">${esc(p.name)} <b>${p.score}</b></li>`).join('');
+      `<li class="${p.guessed ? 'done' : p.skipped ? 'skip' : ''} ${p.id === S.pickerId ? 'pick' : ''} ${p.connected ? '' : 'off'}${p.isBot ? ' bot' : ''}">${esc(p.name)} <b>${p.score}</b>` +
+      (p.fx || []).map((k) => `<i class="fxb">${FXNAME[k] || ''}</i>`).join('') + (p.id === S.me && p.shield ? '<i class="fxb sh">espelho</i>' : '') + (p.toll ? '<i class="fxb">pedágio</i>' : '') + '</li>').join('');
+    renderHand(); applyFx();
     const online = S.players.filter((p) => p.connected);
     $('#people-n').textContent = online.length;
     // botão Não sei
@@ -540,7 +701,7 @@
       if (!gp) continue;
       const prev = pads[gp.index] || {};
       const now = {
-        a: gp.buttons[0]?.pressed, b: gp.buttons[1]?.pressed, x: gp.buttons[2]?.pressed, y: gp.buttons[3]?.pressed, start: gp.buttons[9]?.pressed, mic: gp.buttons[4]?.pressed || gp.buttons[5]?.pressed,
+        a: gp.buttons[0]?.pressed, b: gp.buttons[1]?.pressed, x: gp.buttons[2]?.pressed, y: gp.buttons[3]?.pressed, start: gp.buttons[9]?.pressed, mic: gp.buttons[4]?.pressed || gp.buttons[5]?.pressed, rt: gp.buttons[7]?.pressed,
         up: gp.buttons[12]?.pressed || gp.axes[1] < -0.6, down: gp.buttons[13]?.pressed || gp.axes[1] > 0.6,
         left: gp.buttons[14]?.pressed || gp.axes[0] < -0.6, right: gp.buttons[15]?.pressed || gp.axes[0] > 0.6,
       };
@@ -551,6 +712,8 @@
       if (hit('mic') && !$('#v-game').hidden && !micBtn.hidden) micBtn.click();
       if (hit('x') && !$('#v-game').hidden && !$('#b-skip').disabled) $('#b-skip').click();
       if (hit('y') && (!$('#v-game').hidden || !$('#v-lobby').hidden)) people($('#people').hidden);
+      if (hit('rt') && !$('#hand').hidden) $('#hand-cards .pcard:not(:disabled)')?.focus();
+      if (hit('b') && !$('#target').hidden) { $('#target-cancel').click(); pads[gp.index] = now; continue; }
       if (hit('b')) { if (!$('#people').hidden) people(false); else if (!$('#pause').hidden) pause(false); else if (localView) closeLocal(); else { const g = $('#in-guess'); if (!g.disabled && !$('#v-game').hidden) g.focus(); } }
       if (hit('start')) { if (!$('#v-lobby').hidden) $('#b-start').click(); else if (!$('#v-end').hidden) $('#b-again').click(); else if (!$('#v-game').hidden) pause($('#pause').hidden); }
       pads[gp.index] = now;

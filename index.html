@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#dfe7ea">
 <title>Fotograma — adivinhe pelo frame</title>
-<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
 <main id="app">
@@ -54,6 +54,8 @@
       <li><b>O projecionista escolhe.</b> A cada rodada uma pessoa vê a película com 8 frames cobertos e toca num deles.</li>
       <li><b>Todo mundo chuta.</b> Escreva o nome do filme, série, anime ou desenho. Erro de digitação, falta de acento e nome em inglês ou no idioma original valem.</li>
       <li><b>Dicas aparecem.</b> Com o tempo surgem os tracinhos do título, depois algumas letras e mais frames da mesma obra.</li>
+      <li><b>Modo Arcade.</b> Cada jogador recebe lâminas de poder. Ataques vão em alguém que ainda não acertou (Borrão, Tela virada, Tinta, Apagão, Congelar, Teclado doido, Pedágio; no modo música, Fone mudo e Esquilo). Truques são para você (Espiada, Lupa, Espelho, Dobro, Radar). Ganha uma lâmina por rodada, até 3, e uma extra se acertar primeiro.</li>
+      <li><b>Bots.</b> No lobby, o anfitrião pode pôr bots para treinar ou completar a sala. Eles escolhem frames, chutam, erram, passam a vez e usam poderes.</li>
       <li><b>Falar em vez de digitar.</b> Toque no microfone ao lado do Chutar e fale o nome. O palpite vai sozinho quando você para de falar. Funciona no Chrome do celular; no controle, use LB ou RB.</li>
       <li><b>Modo música.</b> No lugar do frame toca um trecho de 4 segundos. Chute o nome da música, da banda ou do cantor. Acertar só o artista vale 60%. A prévia inteira toca quando a rodada termina.</li>
       <li><b>Ninguém entrega a resposta.</b> Quando alguém acerta, os outros só veem que a pessoa acertou. O nome aparece no fim da rodada, quando o tempo acaba ou todos acertam.</li>
@@ -130,6 +132,19 @@
         </div>
       </fieldset>
       <fieldset class="opt">
+        <legend>Modo de jogo</legend>
+        <div class="seg" id="opt-arcade"><button data-v="0">Clássico</button><button data-v="1">Arcade com poderes</button></div>
+        <p class="opt-note" id="arcade-note" hidden>Cada um ganha lâminas de poder: atrapalhe os outros ou ajude a si mesmo. Uma lâmina nova por rodada, e quem acerta primeiro ganha mais uma.</p>
+      </fieldset>
+      <fieldset class="opt">
+        <legend>Bots</legend>
+        <div class="bots-row">
+          <button type="button" id="b-addbot" class="btn-plain sm">Pôr um bot</button>
+          <div class="seg" id="opt-bot"><button data-v="facil">Bobo</button><button data-v="medio">Esperto</button><button data-v="craque">Craque</button></div>
+        </div>
+        <p class="opt-note">Toque num bot da lista para tirar.</p>
+      </fieldset>
+      <fieldset class="opt">
         <legend>Rodadas</legend>
         <div class="seg" id="opt-rounds"><button data-v="5">5</button><button data-v="10">10</button><button data-v="15">15</button><button data-v="20">20</button></div>
       </fieldset>
@@ -184,6 +199,11 @@
           <button type="button" class="replay" id="b-replay">Tocar de novo</button>
           <p class="mute-note" id="mute-note" hidden>Som mudo. Ligue o som em Ajustes para ouvir.</p>
         </div>
+        <div class="fx-ink" id="fx-ink" hidden aria-hidden="true">
+          <svg viewBox="0 0 100 60" preserveAspectRatio="none"><path d="M18 8c9-3 14 6 11 12 6-1 9 7 3 10 4 6-5 12-11 7-3 7-14 4-12-3-7 0-9-10-2-12-4-7 5-13 11-14z"/><path d="M62 20c7-4 15 2 12 9 7 1 6 11-1 11 1 8-11 9-13 3-7 3-12-6-6-10-5-5 1-14 8-13z"/><path d="M40 38c5-2 9 3 7 7 5 1 3 8-2 7-1 5-9 5-9 0-6 0-6-8 0-9-1-3 1-5 4-5z"/><path d="M84 4c4-1 7 3 5 6 4 1 2 6-2 6 0 4-7 4-7 0-4-1-3-7 1-7 0-3 1-5 3-5z"/><circle cx="8" cy="46" r="4"/><circle cx="52" cy="10" r="3"/><circle cx="92" cy="50" r="5"/></svg>
+        </div>
+        <div class="fx-dark" id="fx-dark" hidden aria-hidden="true"></div>
+        <div class="ptoast" id="ptoast" hidden role="status"></div>
         <div class="answer" id="answer" hidden>
           <img id="answer-poster" alt="">
           <div>
@@ -200,6 +220,11 @@
       <span class="edge" id="edge-a">FG 400 ▸ ROLO 1</span>
       <div class="cells" id="cells"></div>
       <span class="edge edge-b">◂ escolha um frame</span>
+    </div>
+
+    <div class="hand" id="hand" hidden>
+      <div class="hand-top"><span class="hand-label">Suas lâminas</span><span class="hand-state" id="hand-state"></span></div>
+      <div class="hand-cards" id="hand-cards"></div>
     </div>
 
     <ol class="feed" id="feed" aria-live="polite"></ol>
@@ -233,6 +258,16 @@
     </div>
   </div>
 
+  <!-- ALVO DO PODER -->
+  <div class="pause" id="target" hidden role="dialog" aria-modal="true" aria-labelledby="target-t">
+    <div class="pause-card">
+      <h2 id="target-t" class="pencil">Em quem?</h2>
+      <p class="fine" id="target-desc"></p>
+      <div id="target-list"></div>
+      <button type="button" class="menu-item" id="target-cancel"><b>Guardar a lâmina</b></button>
+    </div>
+  </div>
+
   <!-- QUEM ESTÁ NA SALA -->
   <div class="pause" id="people" hidden role="dialog" aria-modal="true" aria-labelledby="people-t">
     <div class="pause-card">
@@ -256,7 +291,7 @@
   <footer class="tmdb">Frames e dados: TMDB. Este jogo usa a API do TMDB, mas não é endossado nem certificado pelo TMDB. Prévias de músicas: Apple (iTunes Search API).</footer>
 </main>
 <script src="/socket.io/socket.io.js"></script>
-<script src="sfx.js?v=10"></script>
-<script src="app.js?v=10"></script>
+<script src="sfx.js?v=11"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

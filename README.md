@@ -57,3 +57,12 @@ Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.
 - Botão de microfone dentro do campo de palpite (aparece só em navegador com reconhecimento de voz, como o Chrome do Android). No controle: LB ou RB.
 - Fala em pt-BR; o palpite vai sozinho quando você para de falar. O navegador manda até 5 versões do que ouviu e o servidor fica com a que mais se aproxima da resposta.
 - Precisa de HTTPS (o Render já tem) e da permissão de microfone.
+
+## Modo Arcade e bots
+
+- No lobby: **Modo de jogo → Arcade com poderes**. Cada jogador recebe 2 lâminas no começo, +1 por rodada (máx. 3) e +1 se acertar em 1º.
+- Ataques (em quem ainda não acertou): Borrão, Tela virada, Tinta na lente, Apagão (modo filme); Fone mudo, Esquilo (modo música); Congelar (7 s sem chutar, validado no servidor), Teclado doido (troca letras e desliga o microfone), Pedágio (30% do próximo acerto vai para quem jogou).
+- Truques (para si): Espiada (um frame a mais só seu), Lupa (iniciais + ano), Espelho (devolve o próximo ataque; dois espelhos se anulam), Dobro (próximo acerto x2), Radar (chute errado diz quente/morno/frio).
+- 3,5 s de recarga entre lâminas. No controle: RT foca as lâminas, A usa, B cancela.
+- **Bots**: o anfitrião põe até 7 (Bobo, Esperto, Craque). Eles escolhem frames, soltam pistas, chutam com erros de digitação, erram, passam a vez e usam poderes (preferem atacar quem lidera). Quando só faltam bots, eles resolvem em poucos segundos.
+- Teste: `FG_DECK=borrao,congela,...` fixa a ordem das lâminas (só para testes).

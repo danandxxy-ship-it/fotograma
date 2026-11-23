@@ -123,6 +123,30 @@ window.SFX = (() => {
     },
     // alguém entrou na sala: fita crepe
     join() { const t = T(); noise(t, 0.16, { vol: 0.4, freq: 2500, q: 1.2, sweep: 900 }); },
+    // arcade: levou um ataque
+    zap() {
+      const t = T();
+      tone(880, t, 0.25, { type: 'sawtooth', vol: 0.16, glide: 110 });
+      noise(t, 0.3, { vol: 0.35, freq: 900, q: 1.5, sweep: 200 });
+    },
+    // usou uma lâmina: slide caindo no projetor
+    power() {
+      const t = T();
+      noise(t, 0.05, { vol: 0.45, type: 'highpass', freq: 2500 });
+      tone(330, t + 0.03, 0.3, { type: 'triangle', vol: 0.2, glide: 660 });
+      tone(990, t + 0.12, 0.25, { vol: 0.08 });
+    },
+    // espelho devolveu
+    mirror() {
+      const t = T();
+      [2093, 2637, 3136].forEach((f, i) => tone(f, t + i * 0.04, 0.5, { type: 'sine', vol: 0.1 }));
+      noise(t, 0.25, { vol: 0.2, type: 'highpass', freq: 7000 });
+    },
+    freeze() {
+      const t = T();
+      for (let i = 0; i < 6; i++) tone(2400 + i * 300, t + i * 0.03, 0.12, { type: 'sine', vol: 0.06 });
+      noise(t, 0.4, { vol: 0.25, type: 'highpass', freq: 5000, sweep: 9000 });
+    },
     click() { const t = T(); tone(900, t, 0.04, { type: 'square', vol: 0.08 }); },
   };
 

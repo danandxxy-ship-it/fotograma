@@ -61,9 +61,12 @@ io.on('connection', (socket) => {
   socket.on('guess', (msg) => {
     if (!room) return;
     const r = typeof msg === 'object' && msg ? room.guess(pid, msg.text, msg.alts) : room.guess(pid, msg);
-    if (r) socket.emit('verdict', { result: r.result, exact: !!r.exact, pts: r.pts || 0, artistOnly: !!r.artistOnly, place: r.place || 0, placeBonus: r.placeBonus || 0, exactBonus: r.exactBonus || 0 });
+    if (r) socket.emit('verdict', { result: r.result, exact: !!r.exact, pts: r.pts || 0, artistOnly: !!r.artistOnly, place: r.place || 0, placeBonus: r.placeBonus || 0, exactBonus: r.exactBonus || 0, left: r.left || 0, heat: r.heat || null, double: !!r.double, toll: r.toll || 0, card: !!r.card });
   });
   socket.on('skip', () => room && room.skip(pid));
+  socket.on('power', (m = {}) => { if (room) { const res = room.usePower(pid, m.card, m.target); if (res !== 'ok') socket.emit('powerfail', res); } });
+  socket.on('addbot', host(() => { if (room.phase === 'lobby' || room.phase === 'end') room.bots.add(); }));
+  socket.on('kickbot', host((id) => room.bots.remove(id)));
   socket.emit('stats', stats());
   socket.on('leave', () => { if (room) room.removePlayer(pid, socket.id); room = null; });
   socket.on('disconnect', () => room && room.dropSocket(pid, socket.id));
