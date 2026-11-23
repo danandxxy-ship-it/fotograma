@@ -132,7 +132,10 @@ class Characters {
     for (const k of order) {
       try {
         if (k === 'live') return await this.live(catalog, diff, used);
-        if (k === 'jikan') return await this.anime(diff, used);
+        if (k === 'jikan') {
+          if ((this.jikanDown || 0) > Date.now()) continue; // Jikan fora do ar: vai direto pro AniList
+          try { return await this.anime(diff, used); } catch (e) { this.jikanDown = Date.now() + 10 * 60 * 1000; throw e; }
+        }
         return await this.anilist(diff, used);
       } catch (e) { errs.push(e.message); }
     }
