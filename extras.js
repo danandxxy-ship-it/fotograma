@@ -140,12 +140,12 @@ class Characters {
         if (!profiles.includes(ch.profile_path)) profiles.unshift(ch.profile_path);
         profiles = [ch.profile_path, ...shuffle(profiles.filter((p) => p !== ch.profile_path))].slice(0, 3);
         let backs = [];
-        try { const d = await catalog.details(type, c.id); backs = d.frames.slice(0, 8 - profiles.length); } catch {}
+        try { const d = await catalog.details(type, c.id); backs = d.frames.slice(0, 8 - profiles.length).map((f) => ({ ...f, scene: true })); } catch {}
         const work = j.title || j.name;
         return {
           id: 'c' + type + c.id + ':' + ch.id, isChar: true, title: names[0], original: `${ch.name} em ${work}`,
           year: (j.release_date || j.first_air_date || '').slice(0, 4), kind: 'Personagem', poster: IMG + 'w342' + ch.profile_path,
-          titles: names, actorTitles: [ch.name], work,
+          titles: names, actorTitles: [ch.name], work, face: IMG + 'w185' + ch.profile_path,
           frames: profiles.map((p) => ({ full: IMG + 'h632' + p, thumb: IMG + 'w185' + p, portrait: true })).concat(backs),
         };
       }
@@ -175,8 +175,8 @@ class Characters {
       const workImgs = animes.slice(0, 2).map((a) => a.anime?.images?.jpg?.large_image_url || a.anime?.images?.jpg?.image_url).filter(Boolean);
       return {
         id: 'ca' + c.mal_id, isChar: true, title: name, original: work ? `de ${work}` : '', year: '', kind: 'Personagem de anime',
-        poster: main, titles: names, actorTitles: null, work,
-        frames: imgs.map((u) => ({ full: u, thumb: u, portrait: true })).concat(workImgs.map((u) => ({ full: u, thumb: u, portrait: true }))).slice(0, 8),
+        poster: main, titles: names, actorTitles: null, work, face: main,
+        frames: imgs.map((u) => ({ full: u, thumb: u, portrait: true })).concat(workImgs.map((u) => ({ full: u, thumb: u, portrait: true, scene: true }))).slice(0, 8),
       };
     }
     throw new Error('Não consegui buscar personagens de anime agora. Tente de novo.');
@@ -324,8 +324,8 @@ class DemoChars {
   async pick(_c, _s, _d, used) {
     const pool = DEMO_CHARS.map((c, i) => ({ c, i })).filter(({ i }) => !used.has('cd' + i));
     const { c, i } = pick(pool.length ? pool : DEMO_CHARS.map((c2, i2) => ({ c: c2, i: i2 })));
-    return { id: 'cd' + i, isChar: true, title: c[0], original: `${c[1]} em ${c[2]}`, year: '', kind: 'Personagem', poster: `/demo/poster/${i}.svg`, titles: charNames(c[0]), actorTitles: [c[1]], work: c[2],
-      frames: Array.from({ length: 6 }, (_, n) => ({ full: `/demo/frame/${30 + i}/${n}.svg`, thumb: `/demo/frame/${30 + i}/${n}.svg`, portrait: n < 3 })) };
+    return { id: 'cd' + i, isChar: true, title: c[0], original: `${c[1]} em ${c[2]}`, year: '', kind: 'Personagem', poster: `/demo/poster/${i}.svg`, titles: charNames(c[0]), actorTitles: [c[1]], work: c[2], face: `/demo/frame/${30 + i}/0.svg`,
+      frames: Array.from({ length: 6 }, (_, n) => ({ full: `/demo/frame/${30 + i}/${n}.svg`, thumb: `/demo/frame/${30 + i}/${n}.svg`, portrait: n < 3, scene: n >= 3 })) };
   }
 }
 class DemoTF extends TrueFalse { async pick(_c, d, used) { return super.pick(null, d, used); } }

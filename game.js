@@ -225,7 +225,7 @@ class Room {
       if (by !== this.pickerId || this.revealed.includes(i) || this.revealed.length >= MAX_FRAMES) return;
       if (Date.now() - this.startedAt < 8000) return;
       this.revealed.push(i);
-      this.push({ t: 'sys', text: `Pista: ${this.clueWord()} ${i + 1} revelad${this.clueWord() === 'frame' || this.clueWord() === 'trecho' ? 'o' : 'a'}` });
+      this.push({ t: 'sys', text: this.title.frames[i].scene ? `Pista: cena ${i + 1} revelada` : `Pista: ${this.clueWord()} ${i + 1} revelad${this.clueWord() === 'frame' || this.clueWord() === 'trecho' ? 'o' : 'a'}` });
       this.bots.onExtraFrame();
       this.broadcast();
     }
@@ -242,7 +242,7 @@ class Room {
       if (!free.length) break;
       const k = free[Math.floor(Math.random() * free.length)];
       this.revealed.push(k);
-      this.push({ t: 'sys', text: `Pista: ${this.clueWord()} ${k + 1} revelad${this.clueWord() === 'frame' || this.clueWord() === 'trecho' ? 'o' : 'a'}` });
+      this.push({ t: 'sys', text: this.title.frames[k].scene ? `Pista: cena ${k + 1} revelada` : `Pista: ${this.clueWord()} ${k + 1} revelad${this.clueWord() === 'frame' || this.clueWord() === 'trecho' ? 'o' : 'a'}` });
     }
     this.bots.onExtraFrame();
     this.broadcast();
@@ -467,13 +467,14 @@ class Room {
       frameCount: t && this.phase !== 'lobby' && this.phase !== 'loading' ? t.frames.length : 0,
       mode: t && !['lobby', 'loading'].includes(this.phase) ? this.modeOf(t) : null,
       audio: t && t.isMusic && ['picking', 'guessing', 'reveal'].includes(this.phase) ? t.audio : null,
-      revealed: (this.revealed || []).map((i) => ({ i, full: t.frames[i].full, thumb: t.frames[i].thumb, start: t.frames[i].start, len: t.frames[i].len, portrait: !!t.frames[i].portrait })),
-      allFrames: showAll && t ? t.frames.map((f, i) => ({ i, thumb: f.thumb, full: f.full })) : null,
+      revealed: (this.revealed || []).map((i) => ({ i, full: t.frames[i].full, thumb: t.frames[i].thumb, start: t.frames[i].start, len: t.frames[i].len, portrait: !!t.frames[i].portrait, scene: !!t.frames[i].scene })),
+      allFrames: showAll && t ? t.frames.map((f, i) => ({ i, thumb: f.thumb, full: f.full, scene: !!f.scene })) : null,
       mask,
       answer: showAll && t ? { title: t.title, original: t.original, artist: t.artist || null, year: t.year, kind: t.kind, poster: t.poster, truth: t.isVF ? t.truth : undefined } : null,
       vf: t && t.isVF && ['guessing', 'reveal'].includes(this.phase) ? { text: t.statement, image: t.image, mine: (this.players.get(forId) || {}).vf ? this.players.get(forId).vf.v : null,
         votes: this.phase === 'reveal' ? [...this.players.values()].filter((p) => p.vf).map((p) => ({ id: p.id, v: p.vf.v })) : null } : null,
       portrait: !!(t && t.isChar),
+      face: t && t.isChar && ['guessing', 'reveal'].includes(this.phase) ? t.face || null : null,
       players: this.order.map((id) => this.players.get(id)).filter(Boolean).map((p) => ({
         id: p.id, name: p.name, score: p.score, connected: p.connected, guessed: p.guessed, skipped: p.skipped, roundPts: p.roundPts, joinedAt: p.joinedAt,
         isBot: !!p.isBot, shield: !!p.shield, cards: (p.hand || []).length,
@@ -490,7 +491,7 @@ class Room {
     return {
       hand: p.hand || [], cd: Math.max(0, (p.cdUntil || 0) - now), fx,
       shield: !!p.shield, double: !!p.double, radar: !!p.radar, toll: !!p.toll,
-      peek: live ? (p.peek || []).map((i) => ({ i, full: t.frames[i].full, thumb: t.frames[i].thumb, start: t.frames[i].start, len: t.frames[i].len })) : [],
+      peek: live ? (p.peek || []).map((i) => ({ i, full: t.frames[i].full, thumb: t.frames[i].thumb, start: t.frames[i].start, len: t.frames[i].len, portrait: !!t.frames[i].portrait, scene: !!t.frames[i].scene })) : [],
       hint: live && p.hint && this.phase === 'guessing' ? makeMask(t.title, 2) + (t.year ? ` · ${t.year}` : '') : null,
     };
   }

@@ -608,6 +608,7 @@
         b.classList.toggle('right', truth === v);
       }
     }
+    if (!S.face || !['guessing', 'reveal'].includes(ph)) $('#face-pin').hidden = true;
     const showVinyl = music && (ph === 'guessing' || ph === 'reveal');
     $('#vinyl').hidden = !showVinyl;
     $('#mute-note').hidden = !(showVinyl && !(SFX.on && SFX.volume > 0));
@@ -626,6 +627,9 @@
       const chosen = viewIdx !== null && pool.find((f) => f.i === viewIdx);
       const shown = chosen || latest;
       img.classList.toggle('wide', !shown.portrait);
+      const pin = !!(S.face && shown.scene); // cena com várias pessoas: mostra quem é o personagem
+      if ($('#face-pin').hidden === pin) $('#face-pin').hidden = !pin;
+      if (pin && $('#face-img').dataset.src !== S.face) { $('#face-img').dataset.src = S.face; $('#face-img').src = S.face; }
       if (img.dataset.src !== shown.full) {
         img.dataset.src = shown.full; img.src = shown.full; img.hidden = false;
         screen.classList.remove('flick'); void screen.offsetWidth; screen.classList.add('flick');
@@ -660,6 +664,7 @@
     const peekIdx = new Set(peeks.map((r) => r.i));
     const revealedIdx = new Set(S.revealed.map((r) => r.i).concat([...peekIdx]));
     const thumbs = {}; (S.allFrames || S.revealed).concat(peeks).forEach((f) => (thumbs[f.i] = thumbs[f.i] || f.thumb));
+    const sceneIdx = new Set((S.allFrames || S.revealed).concat(peeks).filter((f) => f.scene).map((f) => f.i));
     const canPick = (ph === 'picking' && amPicker) || (ph === 'guessing' && amPicker && S.revealed.length < 3 && S.canExtraIn <= 0 && !lateTimer());
     const freshSet = new Set(prev && prev.round === S.round ? S.revealed.filter((r) => !(prev.revealed || []).some((q) => q.i === r.i)).map((r) => r.i) : S.revealed.map((r) => r.i));
     if (revealKey !== lastRevealKey || ph !== lastPhase || $('#cells').children.length !== n || canPick !== $('#cells').classList.contains('picking')) {
@@ -669,7 +674,7 @@
         const on = revealedIdx.has(i);
         const dis = on ? false : !canPick;
         return `<button class="cell${music ? ' mus' : ''}${music && on ? ' lit' : ''}${!music && on && ph !== 'picking' ? ' seen' : ''}${peekIdx.has(i) ? ' peek' : ''}${on && freshSet.has(i) ? ' fresh' : ''}" data-i="${i}" ${dis ? 'disabled' : ''} aria-label="${music ? 'Trecho' : 'Frame'} ${i + 1}${on ? (music ? ', toque para ouvir de novo' : ', projetado') : ''}">` +
-          (music ? waveSvg(i + 1 + S.round * 5) : t ? `<img src="${esc(t)}" alt="" loading="lazy">` : '') + (peekIdx.has(i) && ph !== 'reveal' ? '<span class="peektag">só você</span>' : '') + `<span class="n">${i + 1}${'ABCDEFGH'[i]}</span>` + (on ? circleSvg(i + S.round * 8) : '') + '</button>';
+          (music ? waveSvg(i + 1 + S.round * 5) : t ? `<img src="${esc(t)}" alt="" loading="lazy">` : '') + (peekIdx.has(i) && ph !== 'reveal' ? '<span class="peektag">só você</span>' : '') + (S.portrait && sceneIdx.has(i) ? '<span class="scenetag">cena</span>' : '') + `<span class="n">${i + 1}${'ABCDEFGH'[i]}</span>` + (on ? circleSvg(i + S.round * 8) : '') + '</button>';
       }).join('');
       lastRevealKey = revealKey;
       if (canPick && ph === 'picking' && !matchMedia('(pointer:coarse)').matches) $('#cells .cell:not(:disabled)')?.focus();
@@ -713,7 +718,7 @@
     inp.disabled = !canGuess; $('#b-guess').disabled = !canGuess; micBtn.disabled = !canGuess;
     if (!canGuess && listening) stopMic();
     if (ph !== 'guessing' || !mine.guessed) $('#bonus').hidden = true;
-    if (!listening) inp.placeholder = ph === 'guessing' ? (mine.guessed ? 'Você já acertou' : mine.skipped ? 'Ainda dá pra chutar' : music ? 'Música ou artista' : S.mode === 'char' ? 'Personagem' : S.mode === 'game' ? 'Jogo' : 'Seu palpite') : ph === 'picking' ? `Esperando ${CLUE[0] === 'um' ? 'o' : 'a'} ${CLUE[1]}…` : 'Próximo rolo já vem';
+    if (!listening) inp.placeholder = ph === 'guessing' ? (mine.guessed ? 'Você já acertou' : mine.skipped ? 'Ainda dá pra chutar' : music ? 'Música ou artista' : S.mode === 'char' ? 'Quem é?' : S.mode === 'game' ? 'Jogo' : 'Seu palpite') : ph === 'picking' ? `Esperando ${CLUE[0] === 'um' ? 'o' : 'a'} ${CLUE[1]}…` : 'Próximo rolo já vem';
     if (canGuess && (lastPhase !== 'guessing') && !matchMedia('(pointer:coarse)').matches) inp.focus();
     lastPhase = ph;
   }

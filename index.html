@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#dfe7ea">
 <title>Fotograma — adivinhe pelo frame</title>
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
 <main id="app">
@@ -214,6 +214,12 @@
           <button type="button" class="replay" id="b-replay">Tocar de novo</button>
           <p class="mute-note" id="mute-note" hidden>Som mudo. Ligue o som em Ajustes para ouvir.</p>
         </div>
+        <figure class="face-pin" id="face-pin" hidden>
+          <span class="tape-bit" aria-hidden="true"></span>
+          <img id="face-img" alt="Foto do personagem desta rodada">
+          <svg class="ring" viewBox="0 0 100 120" aria-hidden="true"><path pathLength="1" d="M52 14c22 0 36 14 35 34s-16 36-37 36S12 70 13 48 30 12 55 13c6 0 10 2 12 4"/></svg>
+          <figcaption>é esse!</figcaption>
+        </figure>
         <div class="vf-card" id="vf-card" hidden>
           <div class="vf-frame"><p id="vf-text"></p></div>
           <p class="vf-votes" id="vf-votes"></p>
@@ -322,7 +328,7 @@
   <footer class="tmdb">Frames e dados: TMDB. Este jogo usa a API do TMDB, mas não é endossado nem certificado pelo TMDB. Prévias de músicas: Apple (iTunes Search API). Games: Steam. Personagens de anime: MyAnimeList (Jikan).</footer>
 </main>
 <script src="/socket.io/socket.io.js"></script>
-<script src="sfx.js?v=12"></script>
-<script src="app.js?v=12"></script>
+<script src="sfx.js?v=13"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>
