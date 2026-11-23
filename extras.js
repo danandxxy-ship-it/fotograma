@@ -11,13 +11,28 @@ function queue(gap) {
   return (url) => (chain = chain.then(async () => {
     const wait = last + gap - Date.now(); if (wait > 0) await new Promise((r) => setTimeout(r, wait));
     last = Date.now();
+    return fetchJson(url);
+  }));
+}
+
+// busca JSON com tempo limite e 2 tentativas; erro com o nome do serviço
+async function fetchJson(url, opts = {}) {
+  const host = new URL(url).hostname;
+  let last;
+  for (let t = 0; t < 2; t++) {
     const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 9000);
     try {
-      const r = await fetch(url, { signal: ctl.signal, headers: { accept: 'application/json', 'user-agent': 'Fotograma/1.0' } });
-      if (!r.ok) throw new Error('respondeu ' + r.status);
+      const r = await fetch(url, { ...opts, signal: ctl.signal, headers: { accept: 'application/json', ...(opts.headers || {}) } });
+      if (r.status === 429 || r.status >= 500) throw new Error(`${host} respondeu ${r.status}`);
+      if (!r.ok) { const e = new Error(`${host} respondeu ${r.status}`); e.fatal = true; throw e; }
       return await r.json();
+    } catch (e) {
+      last = e.fatal ? e : new Error(`sem conexão com ${host}${e.cause && e.cause.code ? ' (' + e.cause.code + ')' : e.name === 'AbortError' ? ' (demorou demais)' : ''}`);
+      if (e.fatal) break;
+      await new Promise((r) => setTimeout(r, 1200));
     } finally { clearTimeout(to); }
-  }));
+  }
+  throw last;
 }
 
 // =============== GAMES (Steam Store, sem chave) ===============
@@ -111,11 +126,17 @@ class Characters {
   async pick(catalog, src, diff, used) {
     const canLive = !!catalog && typeof catalog.get === 'function';
     const wantLive = src === 'live' || (src !== 'anime' && canLive && Math.random() < 0.5);
-    if (wantLive) {
-      if (!canLive) throw new Error('Personagens de filmes e séries precisam do token do TMDB.');
-      try { return await this.live(catalog, diff, used); } catch (e) { if (src === 'live') throw e; }
+    if (src === 'live' && !canLive) throw new Error('Personagens de filmes e séries precisam do token do TMDB.');
+    const order = src === 'live' ? ['live'] : src === 'anime' ? ['jikan', 'anilist'] : wantLive ? ['live', 'jikan', 'anilist'] : ['jikan', 'anilist', ...(canLive ? ['live'] : [])];
+    const errs = [];
+    for (const k of order) {
+      try {
+        if (k === 'live') return await this.live(catalog, diff, used);
+        if (k === 'jikan') return await this.anime(diff, used);
+        return await this.anilist(diff, used);
+      } catch (e) { errs.push(e.message); }
     }
-    return this.anime(diff, used);
+    throw new Error(errs[errs.length - 1] || 'Não consegui buscar personagens agora.');
   }
 
   // filmes e séries: fotos do ator, mas vale o nome do personagem
@@ -182,6 +203,26 @@ class Characters {
     throw new Error('Não consegui buscar personagens de anime agora. Tente de novo.');
   }
 }
+
+// reserva dos animes: AniList (GraphQL, sem chave)
+Characters.prototype.anilist = async function (diff, used) {
+  const page = diff === 'facil' ? rnd(1, 2) : diff === 'dificil' ? rnd(4, 12) : rnd(1, 5);
+  const query = `query($p:Int){Page(page:$p,perPage:50){characters(sort:FAVOURITES_DESC){id name{full alternative} image{large}
+    media(perPage:3,sort:POPULARITY_DESC){nodes{type title{romaji english} coverImage{large}}}}}}`;
+  const j = await fetchJson('https://graphql.anilist.co', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query, variables: { p: page } }) });
+  const list = shuffle((j.data?.Page?.characters || []).filter((c) => c.image?.large && !used.has('cl' + c.id) && !/default/.test(c.image.large)));
+  const c = list[0];
+  if (!c) throw new Error('AniList não devolveu personagens.');
+  const name = c.name.full;
+  const media = (c.media?.nodes || []).filter((m) => m.type === 'ANIME').concat((c.media?.nodes || []).filter((m) => m.type !== 'ANIME'));
+  const work = media[0] ? (media[0].title.english || media[0].title.romaji) : '';
+  return {
+    id: 'cl' + c.id, isChar: true, title: name, original: work ? `de ${work}` : '', year: '', kind: 'Personagem de anime',
+    poster: c.image.large, titles: [...new Set([name, ...charNames(name).slice(1), ...(c.name.alternative || []).filter((n) => n && n.length >= 3)])],
+    actorTitles: null, work, face: c.image.large,
+    frames: [{ full: c.image.large, thumb: c.image.large, portrait: true }].concat(media.slice(0, 2).map((m) => ({ full: m.coverImage.large, thumb: m.coverImage.large, portrait: true, scene: true }))),
+  };
+};
 
 // =============== VERDADEIRO OU FALSO ===============
 // [afirmação, verdadeira?, explicação]
@@ -330,4 +371,4 @@ class DemoChars {
 }
 class DemoTF extends TrueFalse { async pick(_c, d, used) { return super.pick(null, d, used); } }
 
-module.exports = { Games, Characters, TrueFalse, DemoGames, DemoChars, DemoTF, charNames, gameVariants, VF, GAMES };
+module.exports = { fetchJson, Games, Characters, TrueFalse, DemoGames, DemoChars, DemoTF, charNames, gameVariants, VF, GAMES };

@@ -29,7 +29,8 @@ class TMDB {
     for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
     const headers = { accept: 'application/json' };
     if (this.bearer) headers.authorization = 'Bearer ' + this.cred; else u.searchParams.set('api_key', this.cred);
-    const r = await fetch(u, { headers });
+    let r;
+    try { r = await fetch(u, { headers }); } catch (e) { throw new Error('sem conexão com o TMDB' + (e.cause && e.cause.code ? ' (' + e.cause.code + ')' : '')); }
     if (r.status === 401) throw new Error('Chave do TMDB inválida.');
     if (!r.ok) throw new Error('TMDB respondeu ' + r.status);
     return r.json();

@@ -23,6 +23,30 @@ const app = express();
 const PUBLIC = new Set(['index.html', 'style.css', 'app.js', 'sfx.js', 'anybody.woff2', 'permanent-marker.woff2']);
 app.get('/', (_q, r) => { r.set('Cache-Control', 'no-cache'); r.sendFile(path.join(__dirname, 'index.html')); });
 app.get('/:file', (req, res, next) => PUBLIC.has(req.params.file) ? res.sendFile(path.join(__dirname, req.params.file), { maxAge: '1h' }) : next());
+// diagnóstico: quais serviços o servidor alcança agora
+app.get('/diag', async (_q, res) => {
+  const tests = {
+    tmdb: 'https://api.themoviedb.org/3/configuration',
+    itunes: 'https://itunes.apple.com/search?term=queen&media=music&limit=1',
+    deezer: 'https://api.deezer.com/search?q=queen&limit=1',
+    steam: 'https://store.steampowered.com/api/appdetails?appids=620',
+    jikan: 'https://api.jikan.moe/v4/top/characters?page=1',
+    anilist: 'https://graphql.anilist.co',
+  };
+  const out = {};
+  await Promise.all(Object.entries(tests).map(async ([k, u]) => {
+    const t0 = Date.now(); const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 8000);
+    try {
+      const opt = k === 'anilist' ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"query":"{Page(perPage:1){characters{id}}}"}' } : {};
+      if (k === 'tmdb' && KEY) { if (KEY.length > 60) opt.headers = { authorization: 'Bearer ' + KEY }; else u += '?api_key=' + KEY; }
+      const r = await fetch(u, { ...opt, signal: ctl.signal });
+      out[k] = { ok: r.ok, status: r.status, ms: Date.now() - t0 };
+    } catch (e) { out[k] = { ok: false, erro: (e.cause && e.cause.code) || e.name || e.message, ms: Date.now() - t0 }; }
+    finally { clearTimeout(to); }
+  }));
+  res.json({ tokenTMDB: !!KEY, ...out });
+});
+
 if (MOCK) {
   app.get('/demo/frame/:i/:n.svg', (req, res) => res.type('svg').send(demoSvg(+req.params.i, +req.params.n)));
   app.get('/demo/audio/:i.wav', (req, res) => res.sendFile(demoWavPath(+req.params.i || 0)));
