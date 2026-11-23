@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#dfe7ea">
 <title>Fotograma — adivinhe pelo frame</title>
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 <main id="app">
@@ -54,6 +54,7 @@
       <li><b>O projecionista escolhe.</b> A cada rodada uma pessoa vê a película com 8 frames cobertos e toca num deles.</li>
       <li><b>Todo mundo chuta.</b> Escreva o nome do filme, série, anime ou desenho. Erro de digitação, falta de acento e nome em inglês ou no idioma original valem.</li>
       <li><b>Dicas aparecem.</b> Com o tempo surgem os tracinhos do título, depois algumas letras e mais frames da mesma obra.</li>
+      <li><b>Falar em vez de digitar.</b> Toque no microfone ao lado do Chutar e fale o nome. O palpite vai sozinho quando você para de falar. Funciona no Chrome do celular; no controle, use LB ou RB.</li>
       <li><b>Modo música.</b> No lugar do frame toca um trecho de 4 segundos. Chute o nome da música, da banda ou do cantor. Acertar só o artista vale 60%. A prévia inteira toca quando a rodada termina.</li>
       <li><b>Ninguém entrega a resposta.</b> Quando alguém acerta, os outros só veem que a pessoa acertou. O nome aparece no fim da rodada, quando o tempo acaba ou todos acertam.</li>
     </ol>
@@ -206,7 +207,12 @@
     <ul class="scoreline" id="scoreline"></ul>
 
     <form class="slate" id="f-guess" autocomplete="off">
-      <input id="in-guess" maxlength="80" placeholder="Seu palpite" aria-label="Seu palpite" enterkeyhint="send" autocorrect="off" spellcheck="false">
+      <span class="field">
+        <input id="in-guess" maxlength="80" placeholder="Seu palpite" aria-label="Seu palpite" enterkeyhint="send" autocorrect="off" spellcheck="false">
+        <button type="button" id="b-mic" class="btn-mic" aria-pressed="false" aria-label="Falar o palpite" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="2.5" width="7" height="12" rx="3.5"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5M8.5 21.5h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </span>
       <button id="b-guess" class="btn-roll sm">Chutar</button>
       <button type="button" id="b-skip" class="btn-skip" aria-pressed="false">Não sei</button>
       <span class="skipinfo" id="skipinfo" aria-live="polite"></span>
@@ -250,7 +256,7 @@
   <footer class="tmdb">Frames e dados: TMDB. Este jogo usa a API do TMDB, mas não é endossado nem certificado pelo TMDB. Prévias de músicas: Apple (iTunes Search API).</footer>
 </main>
 <script src="/socket.io/socket.io.js"></script>
-<script src="sfx.js?v=7"></script>
-<script src="app.js?v=7"></script>
+<script src="sfx.js?v=9"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

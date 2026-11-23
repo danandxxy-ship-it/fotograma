@@ -503,3 +503,17 @@ body:has(.facade:not([hidden])) .tmdb { color: #e8c9a8; opacity: .7; }
 .cell.lit .wave { opacity: 1; }
 .cell.mus:disabled { cursor: default; }
 .cell.mus.lit { cursor: pointer; }
+
+/* ---------- microfone (palpite por voz) ---------- */
+.slate .field { flex: 1; min-width: 0; position: relative; display: flex; }
+.slate .field input { flex: 1; padding-right: 50px; }
+.btn-mic { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 42px; height: 38px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 2px; background: transparent; color: #e9dfcf; }
+.btn-mic[hidden] { display: none; }
+.slate .field:has(.btn-mic[hidden]) input { padding-right: 12px; }
+.btn-mic svg { width: 22px; height: 22px; fill: currentColor; }
+.btn-mic:disabled { opacity: .35; }
+.btn-mic[aria-pressed='true'] { background: var(--pencil); border-color: var(--pencil); color: #fff; }
+.btn-mic[aria-pressed='true']::after { content: ''; position: absolute; inset: -4px; border: 2px solid var(--pencil); border-radius: 2px; animation: micpulse 1s ease-out infinite; }
+@keyframes micpulse { from { opacity: .9; transform: scale(.9); } to { opacity: 0; transform: scale(1.25); } }
+.slate input.listening { border-color: var(--pencil); color: #ffd9d4; font-style: italic; }
+@media (prefers-reduced-motion: reduce) { .btn-mic[aria-pressed='true']::after { animation: none; } }

@@ -100,6 +100,45 @@
     const v = $('#in-guess').value.trim(); if (!v) return;
     socket.emit('guess', v); $('#in-guess').value = '';
   };
+  // ---------- palpite por voz (Web Speech API, Chrome do Android) ----------
+  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null, listening = false;
+  const micBtn = $('#b-mic');
+  function micState(on) {
+    listening = on; micBtn.setAttribute('aria-pressed', String(on));
+    micBtn.setAttribute('aria-label', on ? 'Parar de ouvir' : 'Falar o palpite');
+    $('#in-guess').classList.toggle('listening', on);
+    if (on) $('#in-guess').placeholder = 'Ouvindo… fale o nome';
+  }
+  function micInfo(t) { const el = $('#skipinfo'); el.textContent = t; clearTimeout(micInfo.t); micInfo.t = setTimeout(() => { if (el.textContent === t) el.textContent = ''; }, 3500); }
+  function stopMic() { if (rec && listening) { try { rec.stop(); } catch {} } }
+  function startMic() {
+    if (!Rec || listening || micBtn.disabled) return;
+    stopAudio(); // não deixa o microfone ouvir a música do jogo
+    rec = new Rec();
+    rec.lang = 'pt-BR'; rec.interimResults = true; rec.maxAlternatives = 5; rec.continuous = false;
+    let sent = false;
+    rec.onresult = (e) => {
+      const res = e.results[e.results.length - 1];
+      $('#in-guess').value = res[0].transcript;
+      if (res.isFinal && !sent) {
+        sent = true;
+        const alts = Array.from(res).map((a) => a.transcript.trim()).filter(Boolean);
+        socket.emit('guess', { text: alts[0], alts: alts.slice(1) });
+        $('#in-guess').value = ''; SFX.play('click');
+      }
+    };
+    rec.onerror = (e) => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') micInfo('Libere o microfone para este site nas permissões do navegador.');
+      else if (e.error === 'no-speech') micInfo('Não ouvi nada. Toque no microfone e fale de novo.');
+      else if (e.error === 'network') micInfo('O reconhecimento de voz precisa de internet.');
+    };
+    rec.onend = () => { micState(false); if (S) render(); };
+    try { rec.start(); micState(true); SFX.play('click'); buzz(15); } catch { micState(false); }
+  }
+  if (Rec) micBtn.hidden = false;
+  micBtn.onclick = () => (listening ? stopMic() : startMic());
+
   let vTimer;
   socket.on('verdict', (v) => {
     const r = v.result;
@@ -437,9 +476,10 @@
     // campo de palpite
     const inp = $('#in-guess');
     const canGuess = ph === 'guessing' && !mine.guessed;
-    inp.disabled = !canGuess; $('#b-guess').disabled = !canGuess;
+    inp.disabled = !canGuess; $('#b-guess').disabled = !canGuess; micBtn.disabled = !canGuess;
+    if (!canGuess && listening) stopMic();
     if (ph !== 'guessing' || !mine.guessed) $('#bonus').hidden = true;
-    inp.placeholder = ph === 'guessing' ? (mine.guessed ? 'Você já acertou' : mine.skipped ? 'Ainda dá pra chutar' : music ? 'Música ou artista' : 'Seu palpite') : ph === 'picking' ? (music ? 'Esperando o trecho…' : 'Esperando o frame…') : 'Próximo rolo já vem';
+    if (!listening) inp.placeholder = ph === 'guessing' ? (mine.guessed ? 'Você já acertou' : mine.skipped ? 'Ainda dá pra chutar' : music ? 'Música ou artista' : 'Seu palpite') : ph === 'picking' ? (music ? 'Esperando o trecho…' : 'Esperando o frame…') : 'Próximo rolo já vem';
     if (canGuess && (lastPhase !== 'guessing') && !matchMedia('(pointer:coarse)').matches) inp.focus();
     lastPhase = ph;
   }
@@ -495,7 +535,7 @@
       if (!gp) continue;
       const prev = pads[gp.index] || {};
       const now = {
-        a: gp.buttons[0]?.pressed, b: gp.buttons[1]?.pressed, x: gp.buttons[2]?.pressed, y: gp.buttons[3]?.pressed, start: gp.buttons[9]?.pressed,
+        a: gp.buttons[0]?.pressed, b: gp.buttons[1]?.pressed, x: gp.buttons[2]?.pressed, y: gp.buttons[3]?.pressed, start: gp.buttons[9]?.pressed, mic: gp.buttons[4]?.pressed || gp.buttons[5]?.pressed,
         up: gp.buttons[12]?.pressed || gp.axes[1] < -0.6, down: gp.buttons[13]?.pressed || gp.axes[1] > 0.6,
         left: gp.buttons[14]?.pressed || gp.axes[0] < -0.6, right: gp.buttons[15]?.pressed || gp.axes[0] > 0.6,
       };
@@ -503,6 +543,7 @@
       if (hit('up')) move(0, -1); if (hit('down')) move(0, 1);
       if (hit('left')) move(-1, 0); if (hit('right')) move(1, 0);
       if (hit('a')) { const el = document.activeElement; if (el && el.tagName === 'BUTTON') el.click(); else if (el && el.tagName === 'INPUT') el.form?.requestSubmit(); }
+      if (hit('mic') && !$('#v-game').hidden && !micBtn.hidden) micBtn.click();
       if (hit('x') && !$('#v-game').hidden && !$('#b-skip').disabled) $('#b-skip').click();
       if (hit('y') && (!$('#v-game').hidden || !$('#v-lobby').hidden)) people($('#people').hidden);
       if (hit('b')) { if (!$('#people').hidden) people(false); else if (!$('#pause').hidden) pause(false); else if (localView) closeLocal(); else { const g = $('#in-guess'); if (!g.disabled && !$('#v-game').hidden) g.focus(); } }

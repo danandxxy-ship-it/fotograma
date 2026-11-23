@@ -51,3 +51,9 @@ Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.
 - Vale o nome da música ou o da banda/cantor. Acertar só o artista rende 60% dos pontos.
 - Sala só de músicas não precisa do token do TMDB.
 - Se a busca de música falhar, a rodada cai para filme/série.
+
+## Palpite por voz
+
+- Botão de microfone dentro do campo de palpite (aparece só em navegador com reconhecimento de voz, como o Chrome do Android). No controle: LB ou RB.
+- Fala em pt-BR; o palpite vai sozinho quando você para de falar. O navegador manda até 5 versões do que ouviu e o servidor fica com a que mais se aproxima da resposta.
+- Precisa de HTTPS (o Render já tem) e da permissão de microfone.

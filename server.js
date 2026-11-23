@@ -58,9 +58,9 @@ io.on('connection', (socket) => {
   socket.on('start', host(() => { if (room.phase === 'lobby' || room.phase === 'end') room.start(); }));
   socket.on('lobby', host(() => room.backToLobby()));
   socket.on('pick', (i) => room && room.pick(pid, i));
-  socket.on('guess', (text) => {
+  socket.on('guess', (msg) => {
     if (!room) return;
-    const r = room.guess(pid, text);
+    const r = typeof msg === 'object' && msg ? room.guess(pid, msg.text, msg.alts) : room.guess(pid, msg);
     if (r) socket.emit('verdict', { result: r.result, exact: !!r.exact, pts: r.pts || 0, artistOnly: !!r.artistOnly, place: r.place || 0, placeBonus: r.placeBonus || 0, exactBonus: r.exactBonus || 0 });
   });
   socket.on('skip', () => room && room.skip(pid));

@@ -206,7 +206,7 @@ class Room {
     this.broadcast();
   }
 
-  guess(id, text) {
+  guess(id, text, alts = []) {
     const p = this.players.get(id);
     if (!p || this.phase !== 'guessing' || p.guessed) return null;
     const now = Date.now();
@@ -214,15 +214,26 @@ class Room {
     p.lastGuess = now;
     const clean = String(text || '').slice(0, 80).trim();
     if (!clean) return null;
-    let r = check(clean, this.key);
+    const evalOne = (txt) => {
+    let r = check(txt, this.key);
     let artistOnly = false;
     if (this.artistKey) {
       // música: vale acertar a música OU o artista (só o artista vale 60%)
-      const ra = check(clean, this.artistKey);
+      const ra = check(txt, this.artistKey);
       if (r.result !== 'correct' && ra.result === 'correct') { r = { ...ra, exact: false }; artistOnly = true; }
       else if (r.result === 'wrong' && ra.result === 'close') r = ra;
       else r.score = Math.max(r.score, ra.score);
     }
+    return { r, artistOnly };
+    };
+    // voz: o reconhecimento manda até 5 versões do que ouviu; vale a melhor
+    const rank = (x) => (x.r.result === 'correct' ? 2 : x.r.result === 'close' ? 1 : 0) + x.r.score / 10 - (x.artistOnly ? 0.5 : 0);
+    let best = evalOne(clean);
+    for (const a of (Array.isArray(alts) ? alts : []).slice(0, 5)) {
+      const t = String(a || '').slice(0, 80).trim(); if (!t) continue;
+      const c = evalOne(t); if (rank(c) > rank(best)) best = c;
+    }
+    let { r, artistOnly } = best;
     if (r.result === 'correct') {
       const T = this.settings.time * 1000;
       const left = Math.max(0, this.endsAt - now) / T;
