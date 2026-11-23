@@ -73,3 +73,15 @@ Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.
 - **Personagens**: vale o nome do personagem. Filmes e séries vêm do TMDB (fotos do ator + cenas da obra; precisa do token); animes vêm do MyAnimeList via Jikan (imagem do próprio personagem, sem chave). Chutar o nome do ator mostra "Esse é o ator!" e não conta. Nome completo ganha o bônus de exato.
 - **Verdadeiro ou falso**: banco de ~70 afirmações conferidas + afirmações geradas do TMDB (ano, duração, temporadas, diretor) quando há token. Até 20 s por cartela, ninguém vê a resposta dos outros até o fim, acerto mais rápido vale mais. Teclado: V/F. Controle: LB/RB.
 - **Reações**: 8 emojis embaixo da tela; sobem na tela de todos com o nome de quem mandou. Bots também reagem.
+
+## Modo transmissão (TV)
+Uma tela grande mostra o jogo, e cada pessoa joga pelo celular.
+- Na TV (navegador da smart TV, computador ligado na TV, Chromecast com navegador…), abra **/tv**.
+- **Abrir uma sala nesta TV**: a TV cria a sala e mostra um QR code e o código. Quem entrar primeiro pelo celular vira o anfitrião e escolhe o modo.
+- **Já tem sala aberta?**: digite o código de 4 letras e a TV se liga numa sala que já existe. No lobby do celular, o botão **Mostrar na TV** explica o passo a passo.
+- A TV não conta como jogador. Ela mostra o frame grande, o placar, quem acertou, os poderes do arcade e as reações.
+- No modo Músicas o som sai na TV e os celulares ficam quietos. Tocar num trecho no celular toca ali também.
+- O QR code é gerado em `/qr/CODIGO.svg` e leva direto para `/?sala=CODIGO`.
+
+## Diagnóstico
+`/diag` mostra se o servidor alcança TMDB, iTunes, Deezer, Steam, Jikan e AniList. Personagens de anime usam o Jikan (MyAnimeList) e, se ele não responder, o AniList.

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fotograma na TV</title>
+<meta name="theme-color" content="#dfe7ea">
+<link rel="stylesheet" href="tv.css?v=1">
+</head>
+<body>
+<div id="stage" class="stage">
+
+  <!-- ligar o projetor: o primeiro clique libera som e tela cheia -->
+  <section id="t-start" class="t-start">
+    <h1 class="mark-logo" aria-label="Fotograma">FOTOGRAMA</h1>
+    <p class="t-sub">Modo transmissão. Esta tela mostra o jogo, e cada um joga pelo celular.</p>
+    <div class="t-choices">
+      <button id="b-new" class="t-btn big" autofocus>Abrir uma sala nesta TV</button>
+      <form id="f-code" class="t-code-form">
+        <label for="in-code">Já tem sala aberta? Digite o código</label>
+        <div><input id="in-code" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD"><button class="t-btn">Conectar</button></div>
+      </form>
+    </div>
+    <p id="start-msg" class="t-err" role="alert"></p>
+  </section>
+
+  <!-- sala aberta -->
+  <section id="t-room" class="t-room" hidden>
+    <header class="t-top">
+      <div class="mark-logo sm">FOTOGRAMA</div>
+      <div id="t-ask" class="t-ask"></div>
+      <div id="t-round" class="t-round"></div>
+      <div id="t-reel" class="t-reel" hidden>
+        <svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.9" class="r-bg"/><circle id="t-sweep" cx="18" cy="18" r="15.9" class="r-sw" pathLength="100"/></svg>
+        <b id="t-timer">0</b>
+      </div>
+    </header>
+
+    <!-- LOBBY: grande convite para entrar -->
+    <div id="t-lobby" class="t-lobby">
+      <div class="invite">
+        <img id="qr-big" class="qr" alt="QR code para entrar na sala">
+        <div class="invite-txt">
+          <p class="lead">Aponte a câmera do celular<br>ou entre em</p>
+          <p class="url" id="t-url"></p>
+          <p class="lead">e use o código</p>
+          <p class="code" id="t-code-big">----</p>
+        </div>
+      </div>
+      <div class="lobby-side">
+        <h2 class="pencil">Na sala</h2>
+        <ul id="t-lobby-players" class="tv-tapes"></ul>
+        <p id="t-lobby-hint" class="hint"></p>
+        <p id="t-setup" class="setup"></p>
+      </div>
+    </div>
+
+    <!-- JOGO -->
+    <div id="t-game" class="t-game" hidden>
+      <div class="main">
+        <div id="t-work" class="work-tag" hidden></div>
+        <div class="strip">
+          <div class="sprockets top"></div>
+          <div class="edge-print"><span id="t-edge">FG 400 ▸ ROLO 1</span><span>▸ ▸ ▸</span></div>
+          <div id="t-screen" class="screen">
+            <img id="t-bg" class="bg" alt="" hidden>
+            <img id="t-frame" class="frame" alt="" hidden>
+            <div id="t-face" class="face-pin" hidden><img id="t-face-img" alt=""><span>é este</span></div>
+            <div id="t-vinyl" class="tv-vinyl" hidden><div class="record"><i></i></div><div class="eq"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+            <div id="t-vf" class="vf-title" hidden><p id="t-vf-text"></p><small id="t-vf-count"></small></div>
+            <div id="t-empty" class="empty"><p id="t-empty-msg"></p></div>
+            <div id="t-answer" class="answer" hidden>
+              <img id="t-poster" alt="" hidden>
+              <div><small id="t-ans-kind"></small><h3 id="t-ans-title"></h3><p id="t-ans-orig"></p></div>
+            </div>
+            <div id="t-stamp" class="stamp" hidden></div>
+          </div>
+          <div class="sprockets bot"></div>
+        </div>
+        <div class="under">
+          <p id="t-mask" class="mask"></p>
+          <ol id="t-cells" class="cells"></ol>
+        </div>
+        <ul id="t-feed" class="ticker"></ul>
+      </div>
+      <aside class="side">
+        <ol id="t-score" class="board"></ol>
+        <div class="join-mini">
+          <img id="qr-mini" class="qr" alt="">
+          <p>Entrar:<br><b id="t-code-mini">----</b></p>
+        </div>
+      </aside>
+    </div>
+
+    <!-- FIM -->
+    <div id="t-end" class="t-end" hidden>
+      <h2 class="fim">Fim</h2>
+      <ol id="t-credits" class="credits"></ol>
+      <p class="hint" id="t-end-hint"></p>
+    </div>
+
+    <div id="t-toast" class="toast" hidden></div>
+    <div id="t-reacts" class="react-layer" aria-hidden="true"></div>
+  </section>
+
+  <p id="t-off" class="t-off" hidden>Sem conexão. Tentando de novo…</p>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="sfx.js?v=15"></script>
+<script src="tv.js?v=1"></script>
+</body>
+</html>

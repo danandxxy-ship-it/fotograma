@@ -54,7 +54,10 @@ class Room {
     this.round = 0; this.used = new Set(); this.timers = [];
     this.feed = []; this.touched = Date.now();
     this.bots = new Bots(this);
+    this.screens = new Set(); // TVs ligadas na sala (modo transmissão): só assistem
   }
+  addScreen(socket) { this.screens.add(socket.id); socket.join(this.code); this.touched = Date.now(); this.broadcast(); }
+  dropScreen(sid) { if (this.screens.delete(sid)) { this.touched = Date.now(); this.broadcast(); } }
 
   // ---------- jogadores ----------
   addPlayer(id, name, socket) {
@@ -458,7 +461,7 @@ class Room {
     const showAll = this.phase === 'reveal' || this.phase === 'end';
     const t = this.title;
     return {
-      code: this.code, me: forId, hostId: this.hostId, phase: this.phase,
+      code: this.code, me: forId, tv: forId === null, screens: this.screens.size, hostId: this.hostId, phase: this.phase,
       needKey: this.needKey(), catalogError: this.catalogError,
       settings: this.settings, round: this.round, rounds: this.settings.rounds,
       pickerId: this.pickerId, endsIn: this.endsAt ? Math.max(0, this.endsAt - now) : 0,
@@ -500,6 +503,7 @@ class Room {
     for (const p of this.players.values()) {
       for (const sid of p.sockets) this.io.to(sid).emit('state', this.snapshot(p.id));
     }
+    if (this.screens.size) { const s = this.snapshot(null); for (const sid of this.screens) this.io.to(sid).emit('state', s); }
   }
 }
 
@@ -509,7 +513,7 @@ function createRoom(io) { const code = newCode(); const r = new Room(io, code); 
 // limpa salas abandonadas
 setInterval(() => {
   for (const [code, r] of rooms) {
-    if (!r.humans().length && Date.now() - r.touched > 10 * 60 * 1000) { r.clearTimers(); rooms.delete(code); }
+    if (!r.humans().length && !r.screens.size && Date.now() - r.touched > 10 * 60 * 1000) { r.clearTimers(); rooms.delete(code); }
   }
 }, 60000).unref();
 

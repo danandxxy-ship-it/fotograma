@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#dfe7ea">
 <title>Fotograma — adivinhe pelo frame</title>
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 <main id="app">
@@ -40,6 +40,7 @@
       <div class="tiles">
         <button type="button" class="tile" data-open="howto">Como jogar</button>
         <button type="button" class="tile" data-open="settings">Ajustes</button>
+        <a class="tile tile-tv" href="/tv">Jogar com a TV</a>
       </div>
     </nav>
     <p class="msg" id="home-msg" role="alert"></p>
@@ -104,9 +105,10 @@
         <small>Sala</small>
         <strong id="lobby-code">----</strong>
       </div>
-      <div class="can-actions"><button id="b-share" class="btn-plain sm">Chamar amigos</button><button class="snd" type="button">Som ligado</button></div>
+      <div class="can-actions"><button id="b-share" class="btn-plain sm">Chamar amigos</button><button id="b-tv" class="btn-plain sm" aria-expanded="false">Mostrar na TV</button><button class="snd" type="button">Som ligado</button></div>
     </header>
 
+    <p id="tv-note" class="note tv-note" hidden></p>
     <h2 class="pencil">Na sala <span id="lobby-count"></span></h2>
     <ul id="lobby-players" class="tapes"></ul>
 
@@ -329,7 +331,7 @@
   <footer class="tmdb">Frames e dados: TMDB. Este jogo usa a API do TMDB, mas não é endossado nem certificado pelo TMDB. Prévias de músicas: Apple (iTunes Search API). Games: Steam. Personagens de anime: MyAnimeList (Jikan).</footer>
 </main>
 <script src="/socket.io/socket.io.js"></script>
-<script src="sfx.js?v=14"></script>
-<script src="app.js?v=14"></script>
+<script src="sfx.js?v=15"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>

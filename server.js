@@ -3,6 +3,7 @@ const http = require('http');
 const os = require('os');
 const crypto = require('crypto');
 const express = require('express');
+const QR = require('qrcode');
 const { Server } = require('socket.io');
 const { TMDB, Demo, demoSvg } = require('./catalog');
 const { getRoom, createRoom, setGlobalCatalog, setGlobalMusic, setGlobalExtras, stats } = require('./game');
@@ -20,8 +21,18 @@ if (MOCK) {
 else if (KEY) setGlobalCatalog(new TMDB(KEY));
 
 const app = express();
-const PUBLIC = new Set(['index.html', 'style.css', 'app.js', 'sfx.js', 'anybody.woff2', 'permanent-marker.woff2']);
+const PUBLIC = new Set(['index.html', 'style.css', 'app.js', 'sfx.js', 'anybody.woff2', 'permanent-marker.woff2', 'tv.js', 'tv.css']);
+app.set('trust proxy', true);
 app.get('/', (_q, r) => { r.set('Cache-Control', 'no-cache'); r.sendFile(path.join(__dirname, 'index.html')); });
+app.get('/tv', (_q, r) => { r.set('Cache-Control', 'no-cache'); r.sendFile(path.join(__dirname, 'tv.html')); });
+// QR code da sala para a TV (o celular aponta a câmera e já cai na sala)
+app.get('/qr/:code.svg', async (req, res) => {
+  const code = String(req.params.code || '').toUpperCase();
+  if (!/^[A-Z]{4}$/.test(code)) return res.status(400).end();
+  const url = `${req.protocol}://${req.get('host')}/?sala=${code}`;
+  res.type('svg').set('Cache-Control', 'public, max-age=3600')
+    .send(await QR.toString(url, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#15110d', light: '#00000000' } }));
+});
 app.get('/:file', (req, res, next) => PUBLIC.has(req.params.file) ? res.sendFile(path.join(__dirname, req.params.file), { maxAge: '1h' }) : next());
 // diagnóstico: quais serviços o servidor alcança agora
 app.get('/diag', async (_q, res) => {
@@ -64,6 +75,15 @@ io.on('connection', (socket) => {
   let room = null, pid = null;
   const fail = (msg) => socket.emit('fail', msg);
 
+  // modo transmissão: a TV abre uma sala nova ou se liga numa que já existe, só para mostrar
+  let screenOf = null;
+  socket.on('screen', ({ code } = {}) => {
+    if (screenOf) screenOf.dropScreen(socket.id);
+    const r = code ? getRoom(code) : createRoom(io);
+    if (!r) return fail('Sala não encontrada. Confira o código no celular de quem criou.');
+    screenOf = r; socket.emit('screenOk', { code: r.code });
+    r.addScreen(socket);
+  });
   socket.on('create', ({ name, token } = {}) => {
     pid = cleanId(token); room = createRoom(io);
     socket.emit('joined', { code: room.code, token: pid });
@@ -106,7 +126,7 @@ io.on('connection', (socket) => {
   socket.on('kickbot', host((id) => room.bots.remove(id)));
   socket.emit('stats', stats());
   socket.on('leave', () => { if (room) room.removePlayer(pid, socket.id); room = null; });
-  socket.on('disconnect', () => room && room.dropSocket(pid, socket.id));
+  socket.on('disconnect', () => { if (room) room.dropSocket(pid, socket.id); if (screenOf) screenOf.dropScreen(socket.id); });
 });
 
 let lastStats = '';

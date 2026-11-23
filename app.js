@@ -70,6 +70,12 @@
       else { await navigator.clipboard.writeText(url); $('#b-share').textContent = 'Link copiado'; setTimeout(() => ($('#b-share').textContent = 'Chamar amigos'), 1800); }
     } catch {}
   };
+  // modo transmissão: a TV mostra o jogo grande, cada um joga no celular
+  $('#b-tv').onclick = () => {
+    const n = $('#tv-note'), open = n.hidden;
+    n.hidden = !open; $('#b-tv').setAttribute('aria-expanded', open);
+    if (open) n.innerHTML = `Na TV, no computador ligado nela ou no navegador da smart TV, abra <b>${esc(location.host)}/tv</b>, escolha "Já tem sala aberta" e digite <b>${esc(S.code)}</b>. A imagem e o som da música passam a sair na TV.`;
+  };
   const sendSettings = (patch) => socket.emit('settings', { ...S.settings, ...patch });
   const SPECIAL = ['musicas', 'games', 'personagens', 'vf'];
   const pickCat = (e) => {
@@ -96,7 +102,7 @@
   $('#cells').onclick = (e) => {
     const b = e.target.closest('.cell'); if (!b) return;
     if (S && S.mode === 'music' && b.classList.contains('lit')) { // trecho já tocado: ouvir de novo
-      const r = S.revealed.concat(S.arcade ? S.arcade.peek : []).find((x) => x.i === +b.dataset.i); if (r) playSeg(r.start, r.len); return;
+      const r = S.revealed.concat(S.arcade ? S.arcade.peek : []).find((x) => x.i === +b.dataset.i); if (r) playSeg(r.start, r.len, true); return;
     }
     if (S && b.classList.contains('seen')) { viewIdx = +b.dataset.i; renderGame(S); return; } // projeta este frame na sua tela
     if (b.disabled) return;
@@ -465,8 +471,9 @@
   window.addEventListener('keydown', unlockAudio, { once: true });
   function stopAudio() { clearTimeout(segTimer); try { aud.pause(); } catch {} }
   function loadAudio(url) { if (url && audUrl !== url) { audUrl = url; aud.src = url; aud.load(); } }
-  function playSeg(start, len) {
+  function playSeg(start, len, force) {
     if (!S || !S.audio) return;
+    if (S.screens && !force) return; // TV ligada: a música toca nela
     stopAudio();
     if (!SFX.on || SFX.volume <= 0) return;
     loadAudio(S.audio);
@@ -478,7 +485,7 @@
     };
     if (aud.readyState >= 1) go(); else aud.addEventListener('loadedmetadata', go, { once: true });
   }
-  $('#b-replay').onclick = () => { const r = S && S.revealed[S.revealed.length - 1]; if (r) playSeg(r.start, r.len); };
+  $('#b-replay').onclick = () => { const r = S && S.revealed[S.revealed.length - 1]; if (r) playSeg(r.start, r.len, true); };
 
   function waveSvg(seed) {
     let x = seed * 17 + 3; const r = () => ((x = (x * 9301 + 49297) % 233280) / 233280);
@@ -529,6 +536,7 @@
 
   function renderLobby() {
     show('lobby');
+    $('#b-tv').textContent = S.screens ? 'TV ligada' : 'Mostrar na TV';
     $('#lobby-code').textContent = S.code;
     const online = S.players.filter((p) => p.connected).length;
     $('#lobby-count').textContent = `(${S.players.length}${online < S.players.length ? `, ${online} conectados` : ''})`;
@@ -616,7 +624,8 @@
     if (cw) $('#work-tag').innerHTML = `Personagem ${PREP[cw.kind] || 'de'} <b>${esc(cw.name)}</b>`;
     const showVinyl = music && (ph === 'guessing' || ph === 'reveal');
     $('#vinyl').hidden = !showVinyl;
-    $('#mute-note').hidden = !(showVinyl && !(SFX.on && SFX.volume > 0));
+    $('#mute-note').hidden = !(showVinyl && (S.screens || !(SFX.on && SFX.volume > 0)));
+    $('#mute-note').textContent = S.screens ? 'O som está saindo na TV. Toque num trecho para ouvir aqui.' : 'Som mudo. Ligue o som em Ajustes para ouvir.';
     if (isVF) {
       img.hidden = true; img.dataset.src = '';
       $('#screen-empty').hidden = showVF;
