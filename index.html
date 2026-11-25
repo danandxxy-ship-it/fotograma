@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#dfe7ea">
 <title>Fotograma — adivinhe pelo frame</title>
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 <main id="app">
@@ -321,6 +321,21 @@
   <!-- FIM -->
   <section id="v-end" class="view" hidden>
     <h2 class="logo small">Créditos finais</h2>
+    <div id="end-show" class="end-show">
+      <article id="aw-win" class="aw-win" hidden>
+        <p class="aw-label">Fotograma de Ouro</p>
+        <div class="aw-frame"><h3 id="aw-win-name"></h3><b id="aw-win-score"></b></div>
+        <p id="aw-win-text" class="aw-quote"></p>
+      </article>
+      <article id="aw-lose" class="aw-lose" hidden>
+        <p class="aw-label">Pipoca Murcha</p>
+        <h3 id="aw-lose-name"></h3>
+        <p id="aw-lose-text" class="aw-quote"></p>
+        <b id="aw-lose-score" class="aw-lose-score"></b>
+      </article>
+      <ul id="aw-list" class="aw-list"></ul>
+    </div>
+    <h3 class="credits-title">Placar final</h3>
     <ol class="credits" id="credits"></ol>
     <button id="b-again" class="btn-roll">Jogar de novo</button>
     <button id="b-tolobby" class="btn-plain">Voltar à sala</button>
@@ -331,7 +346,7 @@
   <footer class="tmdb">Frames e dados: TMDB. Este jogo usa a API do TMDB, mas não é endossado nem certificado pelo TMDB. Prévias de músicas: Apple (iTunes Search API). Games: Steam. Personagens de anime: MyAnimeList (Jikan).</footer>
 </main>
 <script src="/socket.io/socket.io.js"></script>
-<script src="sfx.js?v=15"></script>
-<script src="app.js?v=15"></script>
+<script src="sfx.js?v=16"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>

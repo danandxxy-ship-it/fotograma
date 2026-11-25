@@ -414,6 +414,8 @@
     pause(false); $('#f-join').hidden = true; $('#in-code').value = '';
     show('home');
   }
+  // fechou a aba ou o app: sai da sala na hora em vez de ficar lá "sem conexão"
+  addEventListener('pagehide', (e) => { if (inRoom && !e.persisted) socket.emit('leave'); });
   $('#p-leave').onclick = leave;
   $('#b-lobbyleave').onclick = leave;
   $('#b-endleave').onclick = leave;
@@ -568,6 +570,20 @@
 
   function renderEnd() {
     show('end');
+    const R = S.roast;
+    const key = R ? JSON.stringify(R) : '';
+    if ($('#end-show').dataset.k !== key) { // só redesenha quando muda, para a animação não repetir
+      $('#end-show').dataset.k = key;
+      const you = (id, name) => (id === S.me ? `${esc(name)} (você)` : esc(name));
+      $('#aw-win').hidden = !(R && R.winner);
+      if (R && R.winner) { $('#aw-win-name').innerHTML = you(R.winner.id, R.winner.name); $('#aw-win-score').textContent = R.winner.score; $('#aw-win-text').textContent = R.winner.text; }
+      $('#aw-lose').hidden = !(R && R.loser);
+      if (R && R.loser) {
+        $('#aw-lose-name').innerHTML = you(R.loser.id, R.loser.name); $('#aw-lose-score').textContent = R.loser.score + ' pts'; $('#aw-lose-text').textContent = R.loser.text;
+        setTimeout(() => SFX.play('sad'), 900);
+      }
+      $('#aw-list').innerHTML = R ? R.awards.map((w, i) => `<li style="--i:${i}"><span class="ic">${w.icon}</span><strong>${esc(w.title)} <span>· ${you(w.id, w.name)}</span></strong><small>${esc(w.text)}</small></li>`).join('') : '';
+    }
     const ranked = [...S.players].sort((a, b) => b.score - a.score);
     $('#credits').innerHTML = ranked.map((p) => `<li><span>${esc(p.name)}</span><b>${p.score}</b></li>`).join('');
     $('#b-again').hidden = $('#b-tolobby').hidden = !isHost();

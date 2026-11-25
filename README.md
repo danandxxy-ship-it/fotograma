@@ -85,3 +85,11 @@ Uma tela grande mostra o jogo, e cada pessoa joga pelo celular.
 
 ## Diagnóstico
 `/diag` mostra se o servidor alcança TMDB, iTunes, Deezer, Steam, Jikan e AniList. Personagens de anime usam o Jikan (MyAnimeList) e, se ele não responder, o AniList.
+
+## Quem sai da sala
+- Fechou a aba ou o app: sai da sala na hora.
+- Caiu a internet ou bloqueou a tela: fica "sem conexão" por 25 s no jogo (6 s no lobby) e depois sai.
+- Se voltar na mesma partida, recupera os pontos.
+
+## Créditos finais com zoeira
+No fim, quem ganhou leva o **Fotograma de Ouro** com um elogio, quem ficou por último leva a **Pipoca Murcha** com uma zoeira, e saem até 4 prêmios engraçados (Dedo mais rápido, Mira de sniper, Chutador profissional, Rei do quase, Não sei, não vi, Fã do elenco, Encrenqueiro, Saco de pancada). As frases saem do que cada um fez na partida (`roast.js`), e todo mundo vê as mesmas, inclusive a TV.

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fotograma na TV</title>
 <meta name="theme-color" content="#dfe7ea">
-<link rel="stylesheet" href="tv.css?v=1">
+<link rel="stylesheet" href="tv.css?v=2">
 </head>
 <body>
 <div id="stage" class="stage">
@@ -95,7 +95,16 @@
     <!-- FIM -->
     <div id="t-end" class="t-end" hidden>
       <h2 class="fim">Fim</h2>
-      <ol id="t-credits" class="credits"></ol>
+      <div class="end-grid">
+        <div class="end-left">
+          <article id="tw-win" class="tw-win" hidden><p class="tw-label">Fotograma de Ouro</p><div class="tw-frame"><h3 id="tw-win-name"></h3><b id="tw-win-score"></b></div><p id="tw-win-text" class="tw-quote"></p></article>
+          <article id="tw-lose" class="tw-lose" hidden><p class="tw-label">Pipoca Murcha</p><h3 id="tw-lose-name"></h3><p id="tw-lose-text" class="tw-quote"></p><b id="tw-lose-score"></b></article>
+        </div>
+        <div class="end-right">
+          <ol id="t-credits" class="credits"></ol>
+          <ul id="tw-awards" class="tw-awards"></ul>
+        </div>
+      </div>
       <p class="hint" id="t-end-hint"></p>
     </div>
 
@@ -106,7 +115,7 @@
   <p id="t-off" class="t-off" hidden>Sem conexão. Tentando de novo…</p>
 </div>
 <script src="/socket.io/socket.io.js"></script>
-<script src="sfx.js?v=15"></script>
-<script src="tv.js?v=1"></script>
+<script src="sfx.js?v=16"></script>
+<script src="tv.js?v=2"></script>
 </body>
 </html>

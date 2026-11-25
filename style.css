@@ -261,6 +261,38 @@ input::placeholder { color: #8b979c; }
 .credits li b { font-weight: 900; font-variation-settings: 'wdth' 70; }
 #v-end .btn-roll, #v-end .btn-plain { width: 100%; margin-bottom: 12px; }
 
+/* créditos finais com comentários: vencedor num fotograma dourado, último lugar num bilhete de fita crepe */
+.end-show { display: grid; gap: 26px; margin-bottom: 28px; }
+.aw-label { margin: 0 0 6px; font: 400 18px var(--marker); color: var(--pencil); }
+.aw-quote { margin: 10px 0 0; font: 400 19px/1.35 var(--marker); color: var(--ink); }
+.aw-win { position: relative; animation: aw-in .55s cubic-bezier(.2, 1.4, .5, 1) both; }
+.aw-frame { position: relative; display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 10px; padding: 26px 18px 22px; background: var(--edge);
+  border: 14px solid var(--film); border-left-width: 22px; border-right-width: 22px;
+  background-image: radial-gradient(circle at 85% 10%, #fff8 0 18%, transparent 19%); }
+.aw-frame::before, .aw-frame::after { content: ''; position: absolute; top: -12px; bottom: -12px; width: 8px;
+  background: repeating-linear-gradient(var(--lightbox) 0 8px, transparent 8px 18px); }
+.aw-frame::before { left: -17px; } .aw-frame::after { right: -17px; }
+.aw-frame h3 { margin: 0; font: 900 clamp(30px, 9vw, 44px)/0.95 var(--wide); font-variation-settings: 'wdth' 120; color: var(--film); overflow-wrap: anywhere; }
+.aw-frame b { font: 400 30px var(--marker); color: var(--pencil); }
+.aw-win .aw-quote::before { content: '“'; color: var(--pencil); }
+.aw-win .aw-quote::after { content: '”'; color: var(--pencil); }
+.aw-lose { position: relative; padding: 20px 18px 18px; background: var(--tape); transform: rotate(-1.6deg); box-shadow: 0 1px 3px #0003;
+  animation: aw-drop .5s ease-out .9s both; }
+.aw-lose::before { content: ''; position: absolute; top: -10px; left: 50%; width: 90px; height: 22px; margin-left: -45px; background: #f2ecd9cc; transform: rotate(4deg); box-shadow: 0 1px 1px #0002; }
+.aw-lose h3 { margin: 0; font: 900 28px/1 var(--wide); font-variation-settings: 'wdth' 100; text-decoration: line-through var(--pencil) 3px; text-decoration-skip-ink: none; }
+.aw-lose-score { position: absolute; right: 14px; top: 14px; font: 400 24px var(--marker); color: var(--muted); }
+.aw-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.aw-list li { display: grid; grid-template-columns: 46px 1fr; gap: 2px 12px; align-items: center; padding: 10px 12px; background: var(--lightbox-hot); border-left: 4px solid var(--film);
+  animation: aw-in .4s ease-out both; animation-delay: calc(1.5s + var(--i) * .25s); }
+.aw-list .ic { grid-row: span 2; font-size: 30px; text-align: center; }
+.aw-list strong { font-size: 15px; font-weight: 900; }
+.aw-list strong span { font-weight: 400; color: var(--muted); }
+.aw-list small { font-size: 14px; color: var(--muted); }
+.credits-title { margin: 0 0 6px; font: 400 20px var(--marker); color: var(--pencil); }
+@keyframes aw-in { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+@keyframes aw-drop { from { opacity: 0; transform: rotate(-12deg) translateY(-40px); } 60% { transform: rotate(1deg); } }
+
+
 .tmdb { margin-top: 30px; font-size: 11px; color: var(--muted); text-align: center; }
 #v-game ~ .tmdb { padding-bottom: 4px; }
 

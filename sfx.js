@@ -121,6 +121,12 @@ window.SFX = (() => {
       [262, 330, 392, 523].forEach((f, i) => tone(f, t + 1.05 + i * 0.02, 1.6, { type: 'triangle', vol: 0.15 }));
       noise(t + 1.05, 0.5, { vol: 0.25, type: 'highpass', freq: 5000, a: 0.005 });
     },
+    // último lugar: trombone triste (wah wah wah waaah)
+    sad() {
+      const t = T();
+      [[311, 0], [294, 0.42], [277, 0.84]].forEach(([f, d]) => tone(f, t + d, 0.38, { type: 'sawtooth', vol: 0.09, a: 0.03, glide: f * 0.97 }));
+      tone(262, t + 1.26, 1.1, { type: 'sawtooth', vol: 0.1, a: 0.03, glide: 233 });
+    },
     // alguém entrou na sala: fita crepe
     join() { const t = T(); noise(t, 0.16, { vol: 0.4, freq: 2500, q: 1.2, sweep: 900 }); },
     // arcade: levou um ataque

@@ -116,7 +116,16 @@
     const k = ranked.map((p) => p.id + p.score).join();
     if ($('#t-credits').dataset.k !== k) {
       $('#t-credits').dataset.k = k;
-      $('#t-credits').innerHTML = ranked.slice(0, 8).map((p, i) => `<li style="--i:${ranked.length - i};--r:${rot(i)}"><span>${esc(p.name)}</span><b>${p.score}</b></li>`).join('');
+      $('#t-credits').innerHTML = ranked.slice(0, 6).map((p, i) => `<li style="--i:${ranked.length - i};--r:${rot(i)}"><span>${esc(p.name)}</span><b>${p.score}</b></li>`).join('');
+    }
+    const R = S.roast, rk = R ? JSON.stringify(R) : '';
+    if ($('#t-end').dataset.k !== rk) {
+      $('#t-end').dataset.k = rk;
+      $('#tw-win').hidden = !(R && R.winner);
+      if (R && R.winner) { $('#tw-win-name').textContent = R.winner.name; $('#tw-win-score').textContent = R.winner.score; $('#tw-win-text').textContent = '“' + R.winner.text + '”'; }
+      $('#tw-lose').hidden = !(R && R.loser);
+      if (R && R.loser) { $('#tw-lose-name').textContent = R.loser.name; $('#tw-lose-score').textContent = R.loser.score + ' pts'; $('#tw-lose-text').textContent = R.loser.text; setTimeout(() => SFX.play('sad'), 1700); }
+      $('#tw-awards').innerHTML = R ? R.awards.map((w, i) => `<li style="--i:${i}"><span class="ic">${w.icon}</span><strong>${esc(w.title)} <span>· ${esc(w.name)}</span></strong><small>${esc(w.text)}</small></li>`).join('') : '';
     }
     $('#t-end-hint').textContent = `${nameOf(S.hostId)} pode jogar de novo pelo celular.`;
   }
