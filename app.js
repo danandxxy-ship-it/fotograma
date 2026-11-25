@@ -45,10 +45,15 @@
     socket.emit('join', { name: n, code, token });
   };
   socket.on('joined', ({ code, token: t }) => {
+    autoBack = false;
     inRoom = true; token = t; myCode = code; store.set('token', t); store.set('room', code);
     history.replaceState(null, '', '?sala=' + code);
   });
-  socket.on('fail', (m) => { ($('#v-home').hidden ? $('#lobby-msg') : $('#home-msg')).textContent = m; });
+  let autoBack = false; // tentando voltar sozinho para a última sala
+  socket.on('fail', (m) => {
+    if (autoBack) { autoBack = false; store.set('room', ''); return; } // a sala já fechou: fica no menu sem erro
+    ($('#v-home').hidden ? $('#lobby-msg') : $('#home-msg')).textContent = m;
+  });
   socket.on('stats', (st) => {
     $('#live-count').textContent = st.players
       ? `${st.players} ${st.players === 1 ? 'pessoa jogando' : 'pessoas jogando'} agora em ${st.rooms} ${st.rooms === 1 ? 'sala' : 'salas'}` + (st.playing ? `, ${st.playing} no meio de uma partida` : '')
@@ -57,9 +62,10 @@
   socket.on('keyOk', () => { $('#lobby-msg').textContent = ''; });
   // reconexão automática (celular bloqueou a tela, Wi-Fi caiu…)
   socket.on('connect', () => {
-    const code = myCode || params.get('sala');
+    // fechou a aba e abriu de novo: volta para a última sala (ela segura a vaga por alguns segundos)
+    const code = myCode || params.get('sala') || store.get('room');
     const name = store.get('name');
-    if (code && name && token && (myCode || store.get('room') === code)) socket.emit('join', { name, code, token });
+    if (code && name && token && (myCode || store.get('room') === code)) { autoBack = !myCode; socket.emit('join', { name, code, token }); }
   });
 
   // ---------- lobby ----------
@@ -414,8 +420,6 @@
     pause(false); $('#f-join').hidden = true; $('#in-code').value = '';
     show('home');
   }
-  // fechou a aba ou o app: sai da sala na hora em vez de ficar lá "sem conexão"
-  addEventListener('pagehide', (e) => { if (inRoom && !e.persisted) socket.emit('leave'); });
   $('#p-leave').onclick = leave;
   $('#b-lobbyleave').onclick = leave;
   $('#b-endleave').onclick = leave;

@@ -87,8 +87,8 @@ Uma tela grande mostra o jogo, e cada pessoa joga pelo celular.
 `/diag` mostra se o servidor alcança TMDB, iTunes, Deezer, Steam, Jikan e AniList. Personagens de anime usam o Jikan (MyAnimeList) e, se ele não responder, o AniList.
 
 ## Quem sai da sala
-- Fechou a aba ou o app: sai da sala na hora.
-- Caiu a internet ou bloqueou a tela: fica "sem conexão" por 25 s no jogo (6 s no lobby) e depois sai.
+- Fechou a aba, o app ou caiu a internet: fica "sem conexão" por 12 s no lobby (25 s no jogo) e depois sai da sala.
+- O botão "Sair" tira da sala na hora.
 - Se voltar na mesma partida, recupera os pontos.
 
 ## Créditos finais com zoeira

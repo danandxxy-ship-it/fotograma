@@ -85,7 +85,7 @@ class Room {
     if (this.hostId === id) this.hostId = this.order.find((x) => this.players.get(x)?.connected && !this.players.get(x).isBot) || id;
     this.broadcast();
     // celular que só bloqueou a tela ou trocou de app tem um tempinho para voltar; depois disso sai da sala de vez
-    const grace = this.phase === 'lobby' || this.phase === 'end' ? 6000 : 25000;
+    const grace = this.phase === 'lobby' || this.phase === 'end' ? 12000 : 25000;
     clearTimeout(p.dropT);
     p.dropT = setTimeout(() => { if (!p.connected && this.players.get(id) === p) this.removePlayer(id, null); }, grace);
   }
