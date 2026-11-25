@@ -215,7 +215,8 @@
     const cuts = S.feed.map((f, i) => (f.t === 'answer' || f.text === 'Partida começou' ? i : -1)).filter((i) => i >= 0);
     const from = ph === 'reveal' ? (cuts.length > 1 ? cuts[cuts.length - 2] : -1) : (cuts.length ? cuts[cuts.length - 1] : -1);
     const items = S.feed.slice(from + 1).filter((f) => ['ok', 'close', 'power', 'skip', 'guess'].includes(f.t)).slice(-2);
-    $('#t-feed').innerHTML = items.map((f) => f.t === 'guess' ? `<li><b>${esc(f.who)}:</b> ${esc(f.text)}</li>` : `<li class="${f.t}">${esc(f.text)}</li>`).join('');
+    const chips = (f) => (f.re || []).map((r) => `<span class="chip">${esc(r.e)}${r.n > 1 ? `<i>${r.n}</i>` : ''}</span>`).join('');
+    $('#t-feed').innerHTML = items.map((f) => (f.t === 'guess' ? `<li><b>${esc(f.who)}:</b> ${esc(f.text)}` : `<li class="${f.t}">${esc(f.text)}`) + chips(f) + '</li>').join('');
   }
 
   // ---------- sons ----------

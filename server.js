@@ -121,6 +121,12 @@ io.on('connection', (socket) => {
     lastReact = Date.now();
     room.react(pid, e);
   });
+  let lastMsgReact = 0;
+  socket.on('reactMsg', (m = {}) => {
+    if (!room || !REACT.includes(m.e) || !Number.isInteger(m.n) || Date.now() - lastMsgReact < 250) return;
+    lastMsgReact = Date.now();
+    room.reactMsg(pid, m.n, m.e);
+  });
   socket.on('power', (m = {}) => { if (room) { const res = room.usePower(pid, m.card, m.target); if (res !== 'ok') socket.emit('powerfail', res); } });
   socket.on('addbot', host(() => { if (room.phase === 'lobby' || room.phase === 'end') room.bots.add(); }));
   socket.on('kickbot', host((id) => room.bots.remove(id)));

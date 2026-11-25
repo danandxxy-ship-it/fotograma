@@ -360,6 +360,54 @@
     el.addEventListener('animationend', (ev) => { if (ev.target === el) el.remove(); });
   });
 
+  // ---------- reagir às mensagens do feed ----------
+  const MSG_EMO = ['😂', '🔥', '😱', '👏', '🤯', '💀', '😡', '❤️'];
+  let openMsg = null, lastFeedN = 0;
+  function renderFeed() {
+    const feed = $('#feed');
+    const atBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
+    feed.innerHTML = S.feed.map((f) => {
+      const cls = f.t === 'guess' ? '' : { ok: 'ok', close: 'close', answer: 'answer-line', skip: 'skip', power: 'power' }[f.t] || 'sys';
+      const body = f.t === 'guess' ? `<b>${esc(f.mine ? 'Você' : f.who)}:</b> ${esc(f.text)}` : esc(f.text);
+      const chips = f.re && f.re.length ? `<span class="chips">${f.re.map((r) =>
+        `<button type="button" class="chip${r.me ? ' me' : ''}" data-n="${f.n}" data-e="${esc(r.e)}" aria-label="${esc(r.e)} de ${esc(r.who.join(', '))}" title="${esc(r.who.join(', '))}">${esc(r.e)}${r.n > 1 ? `<i>${r.n}</i>` : ''}</button>`).join('')}</span>` : '';
+      return `<li class="${cls}${openMsg === f.n ? ' picking' : ''}" data-n="${f.n}" tabindex="0">${body}${chips}</li>`;
+    }).join('');
+    const lastN = S.feed.length ? S.feed[S.feed.length - 1].n : 0;
+    if (atBottom || !lastFeedN || (lastN !== lastFeedN && !openMsg)) feed.scrollTop = feed.scrollHeight;
+    lastFeedN = lastN;
+    placePicker();
+  }
+  function placePicker() {
+    const pk = $('#msg-pick');
+    const li = openMsg && $(`#feed li[data-n="${openMsg}"]`);
+    if (!li || $('#v-game').hidden) { pk.hidden = true; openMsg = null; return; }
+    pk.hidden = false;
+    const r = li.getBoundingClientRect(), w = pk.offsetWidth, h = pk.offsetHeight;
+    const top = r.top - h - 6 < 8 ? r.bottom + 6 : r.top - h - 6;
+    pk.style.top = Math.round(top) + 'px';
+    pk.style.left = Math.round(Math.max(8, Math.min(innerWidth - w - 8, r.left))) + 'px';
+  }
+  $('#feed').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (chip) { socket.emit('reactMsg', { n: +chip.dataset.n, e: chip.dataset.e }); buzz(6); return; }
+    const li = e.target.closest('li[data-n]'); if (!li) return;
+    openMsg = openMsg === +li.dataset.n ? null : +li.dataset.n;
+    renderFeed(); buzz(5);
+  });
+  $('#feed').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('li[data-n]')) e.target.click(); });
+  $('#feed').addEventListener('scroll', () => placePicker(), { passive: true });
+  addEventListener('resize', () => placePicker());
+  $('#msg-pick').onclick = (e) => {
+    const b = e.target.closest('[data-e]'); if (!b || !openMsg) return;
+    socket.emit('reactMsg', { n: openMsg, e: b.dataset.e }); buzz(8);
+    openMsg = null; $('#msg-pick').hidden = true; $('#feed .picking')?.classList.remove('picking');
+  };
+  document.addEventListener('pointerdown', (e) => {
+    if (openMsg && !e.target.closest('#msg-pick') && !e.target.closest('#feed li')) { openMsg = null; $('#msg-pick').hidden = true; $('#feed .picking')?.classList.remove('picking'); }
+  });
+  socket.on('msgReact', (m) => { toast(`${m.name} reagiu ${m.e} à sua mensagem`); SFX.play('pop'); });
+
   const isHost = () => S && S.hostId === S.me;
   const me = () => S.players.find((p) => p.id === S.me) || { score: 0 };
   const nameOf = (id) => (S.players.find((p) => p.id === id) || {}).name || '—';
@@ -718,14 +766,8 @@
       : music && ph === 'guessing' ? '◂ toque num trecho para ouvir de novo' : '◂ ◂ ◂';
     if (ph === 'guessing' && amPicker && S.revealed.length < 3 && !music) $('.sheet-strip .edge-b').textContent = `◂ toque para dar mais uma pista`;
 
-    // conversa
-    const feed = $('#feed');
-    feed.innerHTML = S.feed.map((f) => {
-      if (f.t === 'guess') return `<li><b>${esc(f.who)}:</b> ${esc(f.text)}</li>`;
-      const cls = { ok: 'ok', close: 'close', answer: 'answer-line', skip: 'skip' }[f.t] || 'sys';
-      return `<li class="${cls}">${esc(f.text)}</li>`;
-    }).join('');
-    feed.scrollTop = feed.scrollHeight;
+    // conversa (toque numa mensagem para reagir)
+    renderFeed();
 
     // placar
     const ranked = [...S.players].sort((a, b) => b.score - a.score);

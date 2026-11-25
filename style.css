@@ -690,3 +690,19 @@ body:has(.facade:not([hidden])) .tmdb { color: #e8c9a8; opacity: .7; }
   font-variation-settings: 'wdth' 88; text-wrap: balance; }
 .work-tag b { color: var(--edge); font-weight: 900; }
 .hud-mid strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; }
+
+/* reações nas mensagens: etiquetas de fita crepe embaixo da fala, fita com os emojis ao tocar */
+.feed li[data-n] { position: relative; cursor: pointer; padding: 2px 4px; margin: 0 -4px; border-radius: 2px; -webkit-tap-highlight-color: transparent; }
+.feed li[data-n]:focus-visible { outline: 3px solid var(--pencil); }
+.feed li.picking { background: #efc23b55; }
+.feed .power { color: var(--pencil); font-weight: 700; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0 2px; }
+.chip { display: inline-flex; align-items: center; gap: 3px; min-height: 28px; padding: 0 8px; border: 0; background: var(--tape); font-size: 15px; line-height: 1; cursor: pointer;
+  box-shadow: 0 1px 1px #0002; animation: chip-in .25s cubic-bezier(.2, 1.6, .5, 1) both; }
+.chip i { font: 900 12px var(--wide); font-style: normal; color: var(--ink); }
+.chip.me { outline: 2px solid var(--pencil); outline-offset: -2px; }
+@keyframes chip-in { from { transform: scale(.4); } }
+.msg-pick { position: fixed; z-index: 60; display: flex; gap: 2px; padding: 6px 8px; background: var(--tape); box-shadow: 0 6px 18px #0004; transform: rotate(-1deg); animation: chip-in .2s ease-out both; }
+.msg-pick::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 7px, #0000000a 7px 8px); pointer-events: none; }
+.msg-pick button { width: 40px; height: 42px; border: 0; background: none; font-size: 26px; cursor: pointer; transition: transform .1s; }
+.msg-pick button:active { transform: scale(1.35); }

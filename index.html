@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#dfe7ea">
 <title>Fotograma — adivinhe pelo frame</title>
-<link rel="stylesheet" href="style.css?v=16">
+<link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
 <main id="app">
@@ -261,7 +261,7 @@
       <div class="hand-cards" id="hand-cards"></div>
     </div>
 
-    <ol class="feed" id="feed" aria-live="polite"></ol>
+    <ol class="feed" id="feed" aria-live="polite" aria-label="Conversa. Toque numa mensagem para reagir"></ol>
 
     <ul class="scoreline" id="scoreline"></ul>
 
@@ -343,10 +343,11 @@
     <button id="b-endleave" class="back">Sair para o menu</button>
   </section>
 
+  <div id="msg-pick" class="msg-pick" role="toolbar" aria-label="Reagir à mensagem" hidden><button type="button" data-e="😂">😂</button><button type="button" data-e="🔥">🔥</button><button type="button" data-e="😱">😱</button><button type="button" data-e="👏">👏</button><button type="button" data-e="🤯">🤯</button><button type="button" data-e="💀">💀</button><button type="button" data-e="😡">😡</button><button type="button" data-e="❤️">❤️</button></div>
   <footer class="tmdb">Frames e dados: TMDB. Este jogo usa a API do TMDB, mas não é endossado nem certificado pelo TMDB. Prévias de músicas: Apple (iTunes Search API). Games: Steam. Personagens de anime: MyAnimeList (Jikan).</footer>
 </main>
 <script src="/socket.io/socket.io.js"></script>
-<script src="sfx.js?v=16"></script>
-<script src="app.js?v=16"></script>
+<script src="sfx.js?v=17"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>

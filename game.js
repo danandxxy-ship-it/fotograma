@@ -104,7 +104,32 @@ class Room {
   connected() { return this.order.map((id) => this.players.get(id)).filter((p) => p && p.connected); }
   humans() { return this.connected().filter((p) => !p.isBot); }
 
-  push(item) { this.feed.push({ ...item, at: Date.now() }); if (this.feed.length > 40) this.feed.shift(); }
+  push(item) {
+    this.feedSeq = (this.feedSeq || 0) + 1;
+    this.feed.push({ ...item, n: this.feedSeq, re: {}, at: Date.now() });
+    if (this.feed.length > 40) this.feed.shift();
+    // bots às vezes reagem a quem acertou primeiro
+    if (item.t === 'ok' && /em 1º/.test(item.text)) { const n = this.feedSeq; this.botReactMsg(0.5, n, ['🔥', '👏', '😱', '😡'], item.pid); }
+  }
+  // reagir a uma mensagem do feed: uma reação por pessoa por mensagem (tocar no mesmo emoji tira)
+  reactMsg(id, n, e) {
+    const p = this.players.get(id), f = this.feed.find((x) => x.n === n);
+    if (!p || !f) return;
+    const had = (f.re[e] || []).includes(id);
+    for (const k of Object.keys(f.re)) { f.re[k] = f.re[k].filter((x) => x !== id); if (!f.re[k].length) delete f.re[k]; }
+    if (!had) {
+      (f.re[e] = f.re[e] || []).push(id);
+      const to = f.pid && this.players.get(f.pid);
+      if (to && to.id !== id) for (const sid of to.sockets) this.io.to(sid).emit('msgReact', { name: p.name, e, text: f.text });
+    }
+    this.broadcast();
+  }
+  botReactMsg(chance, n, list, exceptId) {
+    const bots = [...this.players.values()].filter((p) => p.isBot && p.id !== exceptId);
+    if (!bots.length || Math.random() > chance) return;
+    const b = bots[Math.floor(Math.random() * bots.length)];
+    this.later(700 + Math.random() * 2000, () => this.reactMsg(b.id, n, list[Math.floor(Math.random() * list.length)]));
+  }
 
   // ---------- configuração ----------
   async setKey(key) {
@@ -317,7 +342,7 @@ class Room {
       const picker = this.players.get(this.pickerId);
       if (picker && picker.id !== id) { picker.score += 20; picker.roundPts += 20; }
       // a mensagem pública nunca contém o palpite: o nome só aparece no fim da rodada
-      this.push({ t: 'ok', who: p.name, text: `${p.name} acertou em ${place}º${artistOnly ? ', só o artista' : r.exact ? (this.title.isChar ? ', nome completo' : ', título exato') : ''}! +${pts}${r.double ? ' (dobro)' : ''}${tollMsg}` });
+      this.push({ t: 'ok', who: p.name, pid: p.id, text: `${p.name} acertou em ${place}º${artistOnly ? ', só o artista' : r.exact ? (this.title.isChar ? ', nome completo' : ', título exato') : ''}! +${pts}${r.double ? ' (dobro)' : ''}${tollMsg}` });
       if (place === 1) this.botReact(0.35, ['😱', '👏', '🔥'], p.id);
       this.checkAllGuessed();
     } else {
@@ -325,7 +350,7 @@ class Room {
       if (p.radar) r.heat = r.score >= 0.6 ? 'quente' : r.score >= 0.35 ? 'morno' : 'frio';
       const hide = r.result === 'close' || r.score >= 0.45 || this.correctCount > 0 && r.score >= 0.3;
       if (p.st) { if (r.result === 'close') p.st.close++; else p.st.wrong++; }
-      this.push({ t: r.result === 'close' ? 'close' : 'guess', who: p.name, text: r.result === 'close' ? `${p.name} chegou perto…` : hide ? '••••••' : clean });
+      this.push({ t: r.result === 'close' ? 'close' : 'guess', who: p.name, pid: p.id, text: r.result === 'close' ? `${p.name} chegou perto…` : hide ? '••••••' : clean });
     }
     this.broadcast();
     return r;
@@ -336,7 +361,7 @@ class Room {
     const p = this.players.get(id);
     if (!p || this.phase !== 'guessing' || p.guessed) return;
     p.skipped = !p.skipped;
-    if (p.skipped && !p.skipSaid) { p.skipSaid = true; if (p.st) p.st.skips++; this.push({ t: 'skip', who: p.name, text: `${p.name} não sabe` }); }
+    if (p.skipped && !p.skipSaid) { p.skipSaid = true; if (p.st) p.st.skips++; this.push({ t: 'skip', who: p.name, pid: p.id, text: `${p.name} não sabe` }); }
     this.checkAllGuessed();
     this.broadcast();
   }
@@ -359,7 +384,7 @@ class Room {
     if (!p || this.phase !== 'guessing' || !this.title.isVF || p.vf) return null;
     if ((p.fx.congela || 0) > now) return { result: 'frozen', left: p.fx.congela - now };
     p.vf = { v: !!v, at: now }; p.guessed = true;
-    this.push({ t: 'sys', text: `${p.name} respondeu` });
+    this.push({ t: 'sys', pid: p.id, text: `${p.name} respondeu` });
     this.checkAllGuessed();
     this.broadcast();
     return { result: 'answered' };
@@ -401,12 +426,12 @@ class Room {
       if (p.shield) { p.shield = false; blocked = true; } else { bounced = true; [from, t] = [t, p]; }
     }
     if (blocked) {
-      this.push({ t: 'power', text: `${p.name} jogou ${P.name} em ${this.players.get(targetId).name}, mas os dois espelhos se anularam` });
+      this.push({ t: 'power', pid: p.id, text: `${p.name} jogou ${P.name} em ${this.players.get(targetId).name}, mas os dois espelhos se anularam` });
     } else if (t) {
       if (P.dur) t.fx[card] = now + P.dur;
       if (from.st) from.st.atkSent++; if (t.st) t.st.atkTaken++;
       if (card === 'pedagio') t.toll = from.id;
-      this.push({ t: 'power', text: bounced ? `${p.name} jogou ${P.name} em ${from.name}, mas o espelho devolveu!` : `${p.name} jogou ${P.name} em ${t.name}` });
+      this.push({ t: 'power', pid: p.id, text: bounced ? `${p.name} jogou ${P.name} em ${from.name}, mas o espelho devolveu!` : `${p.name} jogou ${P.name} em ${t.name}` });
       if (P.dur) this.later(P.dur + 50, () => this.broadcast());
       if (t.isBot && Math.random() < 0.6) this.later(500 + Math.random() * 900, () => this.react(t.id, Math.random() < 0.5 ? '😡' : '💀'));
     } else {
@@ -418,7 +443,7 @@ class Room {
       if (card === 'escudo') p.shield = true;
       if (card === 'dobro') p.double = true;
       if (card === 'radar') p.radar = true;
-      this.push({ t: 'power', text: `${p.name} usou ${P.name}` });
+      this.push({ t: 'power', pid: p.id, text: `${p.name} usou ${P.name}` });
     }
     this.io.to(this.code).emit('power', { from: p.id, to: t ? t.id : p.id, via: targetId || null, card, bounced, blocked });
     this.broadcast();
@@ -494,7 +519,7 @@ class Room {
         fx: Object.keys(p.fx || {}).filter((k) => p.fx[k] > now), toll: !!p.toll,
       })),
       arcade: this.settings.arcade ? this.arcadeFor(forId, now) : null,
-      feed: this.feed.slice(-25),
+      feed: this.feed.slice(-25).map(({ re, pid, ...f }) => ({ ...f, mine: pid === forId, re: Object.entries(re).map(([e, ids]) => ({ e, n: ids.length, me: ids.includes(forId), who: ids.map((x) => this.players.get(x)?.name).filter(Boolean) })) })),
     };
   }
   arcadeFor(id, now) {

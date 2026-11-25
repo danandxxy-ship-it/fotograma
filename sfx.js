@@ -127,6 +127,8 @@ window.SFX = (() => {
       [[311, 0], [294, 0.42], [277, 0.84]].forEach(([f, d]) => tone(f, t + d, 0.38, { type: 'sawtooth', vol: 0.09, a: 0.03, glide: f * 0.97 }));
       tone(262, t + 1.26, 1.1, { type: 'sawtooth', vol: 0.1, a: 0.03, glide: 233 });
     },
+    // alguém reagiu à sua mensagem
+    pop() { const t = T(); tone(660, t, 0.08, { type: 'sine', vol: 0.18, glide: 990 }); tone(1320, t + 0.06, 0.1, { type: 'sine', vol: 0.1 }); },
     // alguém entrou na sala: fita crepe
     join() { const t = T(); noise(t, 0.16, { vol: 0.4, freq: 2500, q: 1.2, sweep: 900 }); },
     // arcade: levou um ataque

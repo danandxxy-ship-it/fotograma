@@ -207,3 +207,5 @@ button, input { font: inherit; color: inherit; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }
 #t-end-hint { position: absolute; right: 0; bottom: -20px; margin: 0; font-size: 26px; }
+.ticker .chip { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; padding: 0 10px; background: var(--tape); font-size: 26px; vertical-align: middle; animation: stamp2 .3s ease-out both; }
+.ticker .chip i { font: 900 18px var(--wide); font-style: normal; color: var(--ink); }
